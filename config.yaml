@@ -14,9 +14,9 @@ llm:
   llm-model: gpt-5.1
   timeout: 60
   retry: 3 
-scrap:
-  url-scrapped-content: data/scrapped-content
-  log: log/scrapped
+scrape:
+  url-scraped-content: data/scraped-content
+  log: log/scraped
   timeout: 60
 article-generator:
   system-prompt: prompt/article-system-prompt.md

@@ -20,10 +20,10 @@ The module must be production-ready with comprehensive error handling, retry log
 ```yaml
 tech-trend-analysis:
   analysis-report: data/tech-trend-analysis
-scrap:
-  url-scrapped-content: data/scrapped-content
+scrape:
+  url-scraped-content: data/scraped-content
   timeout: 60
-  log: log/scrapped-content                     # Log directory
+  log: log/scraped-content                     # Log directory
 ```
 
 **Validation**: Missing config.yaml → Raise `ConfigurationError` and exit.
@@ -66,11 +66,11 @@ If today is 2025-11-26:
 ## Output
 
 ### File Path
-`{scrap.url-scrapped-content}/{TODAY_DATE}/{category}/web-scrap.json`
+`{scrape.url-scraped-content}/{TODAY_DATE}/{category}/web-scrape.json`
 
 ### Example
 If today is 2025-11-26:
-`data/scrapped-content/2025-11-26/software_engineering/web-scrap.json`
+`data/scraped-content/2025-11-26/software_engineering/web-scrape.json`
 
 ### JSON Structure
 ```json
@@ -91,7 +91,7 @@ If today is 2025-11-26:
 ## Date Processing Logic
 - **Automatic Date Detection**: Module automatically determines today's date at runtime
 - **Input Directory**: Only scan `{analysis-report}/{TODAY_DATE}/` for category JSON files
-- **Output Directory**: Write all results to `{url-scrapped-content}/{TODAY_DATE}/{category}/`
+- **Output Directory**: Write all results to `{url-scraped-content}/{TODAY_DATE}/{category}/`
 - **No Historical Processing**: Ignore all data from previous dates
 
 ---
@@ -123,7 +123,7 @@ If today is 2025-11-26:
 ## Logging
 
 ### Format: JSON (one object per line)
-**File**: `{scrap.log}/web-scraper-{TODAY_DATE}.log`
+**File**: `{scrape.log}/web-scraper-{TODAY_DATE}.log`
 ---
 
 ## Project Structure
@@ -135,7 +135,7 @@ If today is 2025-11-26:
 ├── data/
 │   ├── tech-trend-analysis/
 │   │   └── {TODAY_DATE}/      # Only process this directory
-│   └── scrapped-content/
+│   └── scraped-content/
 │       └── {TODAY_DATE}/      # Only write to this directory
 ├── .env                        # API keys (gitignored)
 ├── config.yaml                 # Configuration file
@@ -145,7 +145,7 @@ If today is 2025-11-26:
 ## Idempotency
 Before scraping each category:
 - Check if the output file exists at:
-`{scrap.url-scrapped-content}/{TODAY_DATE}/{category}/web-scrap.json`
+`{scrape.url-scraped-content}/{TODAY_DATE}/{category}/web-scrape.json`
 - If exists → Log INFO, print "Skipping {category} (already processed for {TODAY_DATE})", do not scrape again.
 
 ---

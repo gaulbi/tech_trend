@@ -58,7 +58,7 @@ class Config:
         """
         required_keys = [
             'tech-trend-analysis',
-            'scrap'
+            'scrape'
         ]
         
         for key in required_keys:
@@ -72,9 +72,9 @@ class Config:
                 "Missing 'analysis-report' in tech-trend-analysis config"
             )
         
-        if 'url-scrapped-content' not in self._config['scrap']:
+        if 'url-scraped-content' not in self._config['scrape']:
             raise ConfigurationError(
-                "Missing 'url-scrapped-content' in scrap config"
+                "Missing 'url-scraped-content' in scrape config"
             )
     
     @property
@@ -84,13 +84,13 @@ class Config:
     
     @property
     def scrapped_content_dir(self) -> str:
-        """Get scrapped content directory path."""
-        return self._config['scrap']['url-scrapped-content']
+        """Get scraped content directory path."""
+        return self._config['scrape']['url-scraped-content']
     
     @property
     def timeout(self) -> int:
         """Get HTTP timeout in seconds."""
-        return self._config['scrap'].get('timeout', 60)
+        return self._config['scrape'].get('timeout', 60)
     
     @property
     def scraperapi_key(self) -> str:
@@ -110,4 +110,4 @@ class Config:
     @property
     def log_dir(self) -> str:
         """Get log directory path for web scraper logs."""
-        return self._config['scrap'].get('log', 'log/scrapped')
+        return self._config['scrape'].get('log', 'log/scraped')
