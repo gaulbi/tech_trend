@@ -1,4 +1,4 @@
-# Web Scraper
+# URL Scraper
 
 ## Role Definition
 **Role**: You are an expert Python developer specializing in clean architecture and production-grade code.
@@ -8,22 +8,19 @@
 
 ## Module Overview
 
-**Purpose**: Search keywords on the Internet using web scraper APIs and store cleaned content.  
-The module must be production-ready with comprehensive error handling, retry logic, and logging.
+**Purpose**: Retreive content of given URLs and remove characters that are not relevant the content, such as HTML tag, reference indicator, and image link.
 **Behavior**: Single-run batch processor for **today's date only** with idempotent behavior (skip categories that already have output files).
 
 ---
 
-## Configuration
-
-### File: `./config.yaml`
+### Configuration
 ```yaml
 tech-trend-analysis:
-  analysis-report: data/tech-trend-analysis
+  analysis-report: data/tech-trend-analysis     #Base source folder
 scrap:
-  url-scrapped-content: data/scrapped-content
+  url-scrapped-content: data/scrapped-content   #Base output folder
   timeout: 60
-  log: log/scrapped-content                     # Log directory
+  log: log/scrapped-content 
 ```
 
 **Validation**: Missing config.yaml → Raise `ConfigurationError` and exit.
@@ -37,21 +34,21 @@ scrap:
 
 **TODAY_DATE**: Automatically determined using `datetime.date.today().strftime('%Y-%m-%d')`
 
-### Example
+## Example
 If today is 2025-11-26:
 `data/tech-trend-analysis/2025-11-26/software_engineering.json`
 
-### Format
+## Format
 ```json
 {
   "analysis_date": "2025-11-26",
   "category": "software_engineering",
   "trends": [
     {
-      "topic": "...",
-      "reason": "...",
-      "links": ["..."],
-      "search_keywords": ["..."]
+      "topic": "AI Agents",
+      "reason": "Rising popularity in enterprise...",
+      "links": ["https://example.com/article1", "https://example.com/article2"],
+      "search_keywords": ["AI", "Agents"]
     }
   ]
 }
@@ -66,27 +63,36 @@ If today is 2025-11-26:
 ## Output
 
 ### File Path
-`{scrap.url-scrapped-content}/{TODAY_DATE}/{category}/web-scrap.json`
+`{scrap.url-scrapped-content}/{TODAY_DATE}/{category}/url-scrap.json`
 
 ### Example
 If today is 2025-11-26:
-`data/scrapped-content/2025-11-26/software_engineering/web-scrap.json`
+`data/scrapped-content/2025-11-26/software_engineering/url-scrap.json`
 
 ### JSON Structure
+_Note: The output flattens the input. Each link from the input becomes a distinct object in the output list._
 ```json
 {
   "analysis_date": "2025-11-26",
   "category": "software_engineering",
   "trends": [
     {
-      "topic": "...",
-      "link": "...",
-      "content": "...",
-      "search_keywords": ["...", "..."]
+      "topic": "AI Agents",
+      "link": "https://example.com/article1",
+      "content": "Extracted readable text content from article 1...",
+      "search_keywords": ["AI", "Agents"]
+    },
+    {
+      "topic": "AI Agents",
+      "link": "https://example.com/article2",
+      "content": "Extracted readable text content from article 2...",
+      "search_keywords": ["AI", "Agents"]
     }
   ]
 }
 ```
+
+# Processing Logic
 
 ## Date Processing Logic
 - **Automatic Date Detection**: Module automatically determines today's date at runtime
@@ -95,16 +101,13 @@ If today is 2025-11-26:
 - **No Historical Processing**: Ignore all data from previous dates
 
 ---
-
-## Multi Web Scraper Provider Support
-- Support multiple Web Scraper providers: **ScraperAPI**, **ScrapingBee**, **ZenRows** 
-- Use a **Factory Pattern** to create appropriate scraper clients.
-- All Scraper clients must inherit from an **Abstract Base Class**
-- Load API keys from **`.env` file**
-
 ## Clean Content
 - Use a standard Python library such as readability-lxml, BeautifulSoup, or similar to extract readable text.
 - Remove irrelevant characters and normalize whitespace.
+- Sanitization: Strictly remove `<script>`, `<style>`,` <meta>`, `<noscript>`, and comments before text extraction.
+- Normalization: Collapse multiple spaces/newlines into single whitespace/paragraphs.
+
+---
 
 ## Error Handling
 
@@ -123,15 +126,16 @@ If today is 2025-11-26:
 ## Logging
 
 ### Format: JSON (one object per line)
-**File**: `{scrap.log}/web-scraper-{TODAY_DATE}.log`
+**File**: `{scrap.log}/url-scraper-{TODAY_DATE}.log`
+
 ---
 
 ## Project Structure
 ```
 .
-├── web_scraper.py              # Main entry point
+├── url_scraper.py              # Main entry point
 ├── src/
-│   └── web_scraper/            # Package
+│   └── url_scraper/            # Package
 ├── data/
 │   ├── tech-trend-analysis/
 │   │   └── {TODAY_DATE}/      # Only process this directory
@@ -163,8 +167,8 @@ Before scraping each category:
 ## Success Criteria
 
 - Automatically processes only today's date without manual date input
-- Searching, scrapping, cleaning, and storing web content successfully for today's categories
-- Invalid search response don't stop execution
+- Accessing, scrapping, cleaning, and storing web content successfully for today's categories
+- Error duing accessing don't stop execution
 - Idempotent: Running twice on same day produces same results
 - All code has type hints and docstrings
 - Graceful handling when no input data exists for today
@@ -176,8 +180,3 @@ Before scraping each category:
 ### DO NOT GENERATE
 - `config.yaml` (provided at runtime)
 - Test files
-
-## Environment Setup (.env file)
-SCRAPERAPI_KEY=...
-SCRAPINGBEE_KEY=...
-ZENROWS_KEY=...

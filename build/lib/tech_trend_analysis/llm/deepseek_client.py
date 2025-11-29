@@ -1,36 +1,20 @@
 """DeepSeek LLM client implementation."""
 
-import os
 import time
-
+from typing import Optional
 import requests
 
-from ..exceptions import LLMProviderError
 from .base import BaseLLMClient
+from ..exceptions import LLMError, NetworkError
 
 
 class DeepSeekClient(BaseLLMClient):
-    """DeepSeek API client."""
-    
-    API_BASE_URL = "https://api.deepseek.com/v1/chat/completions"
-    
-    def __init__(self, model: str, timeout: int, max_retries: int):
-        """
-        Initialize DeepSeek client.
-        
-        Args:
-            model: DeepSeek model identifier
-            timeout: Request timeout in seconds
-            max_retries: Maximum number of retry attempts
-        """
-        super().__init__(model, timeout, max_retries)
-        self.api_key = os.getenv("DEEPSEEK_API_KEY")
-        if not self.api_key:
-            raise LLMProviderError("DEEPSEEK_API_KEY not found in environment")
-    
+    """DeepSeek API client implementation."""
+
+    BASE_URL = "https://api.deepseek.com/v1/chat/completions"
+
     def generate(self, prompt: str) -> str:
-        """
-        Generate response using DeepSeek API.
+        """Generate response using DeepSeek API.
         
         Args:
             prompt: Input prompt text
@@ -39,7 +23,8 @@ class DeepSeekClient(BaseLLMClient):
             Generated response text
             
         Raises:
-            LLMProviderError: If generation fails after retries
+            LLMError: If generation fails
+            NetworkError: If network request fails
         """
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -48,25 +33,77 @@ class DeepSeekClient(BaseLLMClient):
         
         payload = {
             "model": self.model,
-            "messages": [{"role": "user", "content": prompt}]
+            "messages": [
+                {"role": "user", "content": prompt}
+            ],
+            "temperature": 0.7
         }
         
-        for attempt in range(self.max_retries):
+        return self._make_request_with_retry(headers, payload)
+
+    def _make_request_with_retry(
+        self, 
+        headers: dict, 
+        payload: dict
+    ) -> str:
+        """Make API request with exponential backoff retry.
+        
+        Args:
+            headers: Request headers
+            payload: Request payload
+            
+        Returns:
+            Generated response text
+            
+        Raises:
+            NetworkError: If all retry attempts fail
+            LLMError: If API returns an error
+        """
+        last_error: Optional[Exception] = None
+        
+        for attempt in range(self.retry_count):
             try:
                 response = requests.post(
-                    self.API_BASE_URL,
-                    json=payload,
+                    self.BASE_URL,
                     headers=headers,
+                    json=payload,
                     timeout=self.timeout
                 )
-                response.raise_for_status()
-                data = response.json()
-                return data["choices"][0]["message"]["content"]
-            except (requests.RequestException, KeyError) as e:
-                if attempt < self.max_retries - 1:
+                
+                if response.status_code == 200:
+                    return self._parse_response(response.json())
+                else:
+                    raise LLMError(
+                        f"API error: {response.status_code} - "
+                        f"{response.text}"
+                    )
+                    
+            except requests.Timeout as e:
+                last_error = e
+                if attempt < self.retry_count - 1:
                     wait_time = 2 ** attempt
                     time.sleep(wait_time)
-                else:
-                    raise LLMProviderError(f"DeepSeek API error: {e}")
+            except requests.RequestException as e:
+                raise NetworkError(f"Network error: {str(e)}")
         
-        raise LLMProviderError("Max retries exceeded")
+        raise NetworkError(
+            f"Request failed after {self.retry_count} attempts: "
+            f"{str(last_error)}"
+        )
+
+    def _parse_response(self, response_data: dict) -> str:
+        """Parse API response.
+        
+        Args:
+            response_data: Response JSON data
+            
+        Returns:
+            Generated text content
+            
+        Raises:
+            LLMError: If response format is invalid
+        """
+        try:
+            return response_data["choices"][0]["message"]["content"]
+        except (KeyError, IndexError) as e:
+            raise LLMError(f"Invalid response format: {str(e)}")

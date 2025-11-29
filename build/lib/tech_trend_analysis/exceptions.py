@@ -1,13 +1,13 @@
-"""Custom exceptions for tech trend analysis."""
+"""Custom exception classes for tech trend analysis."""
 
 
 class TechTrendAnalysisError(Exception):
-    """Base exception for tech trend analysis."""
+    """Base exception for all tech trend analysis errors."""
     pass
 
 
 class ConfigurationError(TechTrendAnalysisError):
-    """Raised when configuration is invalid or missing."""
+    """Raised when configuration is missing or invalid."""
     pass
 
 
@@ -16,6 +16,11 @@ class ValidationError(TechTrendAnalysisError):
     pass
 
 
-class LLMProviderError(TechTrendAnalysisError):
-    """Raised when LLM provider encounters an error."""
+class LLMError(TechTrendAnalysisError):
+    """Raised when LLM API calls fail."""
+    pass
+
+
+class NetworkError(TechTrendAnalysisError):
+    """Raised when network operations fail."""
     pass

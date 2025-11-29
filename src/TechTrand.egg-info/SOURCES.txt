@@ -31,6 +31,7 @@ src/scrapped_content_embedder/embedding_clients.py
 src/tech_trend_analysis/__init__.py
 src/tech_trend_analysis/config.py
 src/tech_trend_analysis/exceptions.py
+src/tech_trend_analysis/logger.py
 src/tech_trend_analysis/main.py
 src/tech_trend_analysis/models.py
 src/tech_trend_analysis/processor.py

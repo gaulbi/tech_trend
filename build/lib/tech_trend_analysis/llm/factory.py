@@ -1,51 +1,51 @@
-"""Factory for creating LLM clients."""
+"""Factory for creating LLM client instances."""
 
-from typing import Dict, Type
-
-from ..exceptions import LLMProviderError
 from .base import BaseLLMClient
-from .claude_client import ClaudeClient
-from .deepseek_client import DeepSeekClient
-from .ollama_client import OllamaClient
 from .openai_client import OpenAIClient
+from .deepseek_client import DeepSeekClient
+from .claude_client import ClaudeClient
+from .ollama_client import OllamaClient
+from ..exceptions import ConfigurationError
 
 
-class LLMClientFactory:
-    """Factory for creating LLM client instances."""
-    
-    _PROVIDERS: Dict[str, Type[BaseLLMClient]] = {
-        "openai": OpenAIClient,
-        "deepseek": DeepSeekClient,
-        "claude": ClaudeClient,
-        "ollama": OllamaClient
-    }
-    
-    @classmethod
-    def create(cls, provider: str, model: str, 
-               timeout: int, max_retries: int) -> BaseLLMClient:
-        """
-        Create an LLM client instance.
+class LLMFactory:
+    """Factory class for creating LLM client instances."""
+
+    @staticmethod
+    def create_client(
+        provider: str,
+        api_key: str,
+        model: str,
+        timeout: int,
+        retry_count: int
+    ) -> BaseLLMClient:
+        """Create LLM client based on provider.
         
         Args:
             provider: Provider name (openai, deepseek, claude, ollama)
-            model: Model identifier
+            api_key: API key for authentication
+            model: Model name to use
             timeout: Request timeout in seconds
-            max_retries: Maximum number of retry attempts
+            retry_count: Number of retry attempts
             
         Returns:
-            Configured LLM client instance
+            LLM client instance
             
         Raises:
-            LLMProviderError: If provider is not supported
+            ConfigurationError: If provider is not supported
         """
         provider_lower = provider.lower()
-        client_class = cls._PROVIDERS.get(provider_lower)
         
-        if not client_class:
-            supported = ", ".join(cls._PROVIDERS.keys())
-            raise LLMProviderError(
-                f"Unsupported provider: {provider}. "
-                f"Supported providers: {supported}"
+        if provider_lower == "openai":
+            return OpenAIClient(api_key, model, timeout, retry_count)
+        elif provider_lower == "deepseek":
+            return DeepSeekClient(api_key, model, timeout, retry_count)
+        elif provider_lower == "claude":
+            return ClaudeClient(api_key, model, timeout, retry_count)
+        elif provider_lower == "ollama":
+            return OllamaClient(api_key, model, timeout, retry_count)
+        else:
+            raise ConfigurationError(
+                f"Unsupported LLM provider: {provider}. "
+                f"Supported providers: openai, deepseek, claude, ollama"
             )
-        
-        return client_class(model, timeout, max_retries)

@@ -3,12 +3,12 @@
   "category": "ai_machine_learning",
   "trends": [
     {
-      "topic": "Anthropic’s new multi-session Claude SDK and the race to solve AI agents",
-      "reason": "Anthropic’s release of a multi-session Claude SDK is a concrete product move in the hotly contested AI agents space, promising more persistent, capable agents and directly challenging rival orchestration and agent frameworks across the industry.",
+      "topic": "Anthropic’s multi-session Claude SDK and the race to practical AI agents",
+      "reason": "Anthropic’s release of a new multi-session Claude SDK, pitched as solving the long-standing AI agent problem, marks a concrete step toward persistent, tool-using AI assistants that can handle real-world workflows—an area now seeing rapid, competitive innovation and immediate enterprise interest.",
       "links": [
         "https://venturebeat.com/ai/anthropic-says-it-solved-the-long-running-ai-agent-problem-with-a-new-multi"
       ],
-      "search_keywords": "Anthropic, Claude, AI agents, multi-session SDK, agent framework, LLM"
+      "search_keywords": "Anthropic, Claude, AI agents, multi-session SDK, agent framework, tool use"
     }
   ]
 }

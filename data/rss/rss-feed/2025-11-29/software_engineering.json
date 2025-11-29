@@ -4,6 +4,14 @@
   "article_count": 98,
   "articles": [
     {
+      "title": "AccessOwl (YC S22) Is Hiring a Technical Account Manager (IAM)",
+      "link": "https://www.ycombinator.com/companies/accessowl/jobs/dGC3pcO-technical-account-manager-identity-access-management"
+    },
+    {
+      "title": "Testing Shows Automotive Glassbreakers Can't Break Modern Automotive Glass",
+      "link": "https://www.core77.com/posts/138925/Testing-Shows-Automotive-Glassbreakers-Cant-Break-Modern-Automotive-Glass"
+    },
+    {
       "title": "Major AI conference flooded with peer reviews written by AI",
       "link": "https://www.nature.com/articles/d41586-025-03506-6"
     },
@@ -60,10 +68,6 @@
       "link": "https://mathoverflow.net/questions/363119/every-mathematician-has-only-a-few-tricks"
     },
     {
-      "title": "A triangle whose interior angles sum to zero",
-      "link": "https://www.johndcook.com/blog/2025/11/28/tricusp-triangle/"
-    },
-    {
       "title": "Confessions of a Software Developer: No More Self-Censorship",
       "link": "https://kerrick.blog/articles/2025/confessions-of-a-software-developer-no-more-self-censorship/"
     },
@@ -78,10 +82,6 @@
     {
       "title": "Molly: An Improved Signal App",
       "link": "https://molly.im/"
-    },
-    {
-      "title": "So you wanna build a local RAG?",
-      "link": "https://blog.yakkomajuri.com/blog/local-rag"
     },
     {
       "title": "AWS Distributed Tracing Service X-Ray Transitions to OpenTelemetry",
@@ -144,12 +144,40 @@
       "link": "https://www.infoq.com/presentations/platform-engineering-evolution/?utm_campaign=infoq_content&utm_source=infoq&utm_medium=feed&utm_term=global"
     },
     {
+      "title": "Concrete Whispers: Decoding Infrastructure's Silent Distress Calls with AI by Arvind Sundararajan",
+      "link": "https://dev.to/arvind_sundararajan/concrete-whispers-decoding-infrastructures-silent-distress-calls-with-ai-by-arvind-sundararajan-5f7h"
+    },
+    {
+      "title": "NumPy Labs: Minkowski Distance, Image Edge Detection, and Array Reshaping for Data Science",
+      "link": "https://dev.to/labex/numpy-labs-minkowski-distance-image-edge-detection-and-array-reshaping-for-data-science-5cgl"
+    },
+    {
+      "title": "The Hidden Tax on Traders: Is Your Broker Sabotaging You?",
+      "link": "https://dev.to/stock_expertai_5eafb5be7/the-hidden-tax-on-traders-is-your-broker-sabotaging-you-5bn"
+    },
+    {
+      "title": "The New Casino: Wall Street's High-Stakes Gambling Epidemic",
+      "link": "https://dev.to/stock_expertai_5eafb5be7/the-new-casino-wall-streets-high-stakes-gambling-epidemic-37f"
+    },
+    {
+      "title": "The New Age of JSON Formatting — Faster, Cleaner, Smarter",
+      "link": "https://dev.to/bugblitz98/the-new-age-of-json-formatting-faster-cleaner-smarter-2gnn"
+    },
+    {
       "title": "A Simple, Popular Game \"2048\": Deployed on AWS EKS with Fargate",
       "link": "https://dev.to/sindhurteja/a-simple-popular-game-2048-deployed-on-aws-eks-with-fargate-2jj7"
     },
     {
+      "title": "3512. Minimum Operations to Make Array Sum Divisible by K",
+      "link": "https://dev.to/mdarifulhaque/3512-minimum-operations-to-make-array-sum-divisible-by-k-43e6"
+    },
+    {
       "title": "Adding Config File",
       "link": "https://dev.to/alcb1310/adding-config-file-58ch"
+    },
+    {
+      "title": "Understanding Computer File Paths: A Professional Tutorial",
+      "link": "https://dev.to/code_2/understanding-computer-file-paths-a-professional-tutorial-21g0"
     },
     {
       "title": "Trapping Rain Water",
@@ -162,34 +190,6 @@
     {
       "title": "How God Lifts You When You’ve Run Out of Strength to Lift Yourself",
       "link": "https://dev.to/douglasvandergraph/how-god-lifts-you-when-youve-run-out-of-strength-to-lift-yourself-46mm"
-    },
-    {
-      "title": "Solving Frontend-Lambda Timeout Issues with AppSync Asynchronous Execution",
-      "link": "https://dev.to/ismailg/solving-frontend-lambda-timeout-issues-with-appsync-asynchronous-execution-2p93"
-    },
-    {
-      "title": "Self-Hosted vs Cloud PostgreSQL Backups: Full Pros and Cons Guide",
-      "link": "https://dev.to/i_am_john_tempenser/self-hosted-vs-cloud-postgresql-backups-full-pros-and-cons-guide-pe8"
-    },
-    {
-      "title": "From Vibe Coding to Production: Bridging the Gap Between AI Prototypes and Real Systems",
-      "link": "https://dev.to/flinstonedev/from-vibe-coding-to-production-bridging-the-gap-between-ai-prototypes-and-real-systems-53h9"
-    },
-    {
-      "title": "Computer Blue",
-      "link": "https://dev.to/dan52242644dan/computer-blue-1mdj"
-    },
-    {
-      "title": "Countdown Timer in Python: Multiple Input Formats",
-      "link": "https://dev.to/codingstreets/countdown-timer-in-python-multiple-input-formats-2cj3"
-    },
-    {
-      "title": "[Boost]",
-      "link": "https://dev.to/devadetayo/-5f5j"
-    },
-    {
-      "title": "Desenvolvimento remoto no VSCode (Remote)",
-      "link": "https://dev.to/lucaspereiradesouzat/desenvolvimento-remoto-no-vscode-remote-3eh9"
     },
     {
       "title": "The 3 questions developers actually ask in interviews (hint: not about pizza parties)",
@@ -224,16 +224,16 @@
       "link": "https://www.reddit.com/r/programming/comments/1p9ra8y/neutralinojs_v64_released/"
     },
     {
-      "title": "The 10 Best Programming Languages to Learn in 2026",
-      "link": "https://www.reddit.com/r/programming/comments/1p9tqmu/the_10_best_programming_languages_to_learn_in_2026/"
-    },
-    {
-      "title": "rs-utcp",
-      "link": "https://www.reddit.com/r/programming/comments/1p9rsa4/rsutcp/"
+      "title": "I made a TUI that helps you convert recently used cmds into a Makefile",
+      "link": "https://www.reddit.com/r/programming/comments/1p9ubpi/i_made_a_tui_that_helps_you_convert_recently_used/"
     },
     {
       "title": "Shai-Hulud-malicious-packages, an continuously updated threat-intel dataset for malicious NPM packages",
       "link": "https://www.reddit.com/r/programming/comments/1p9i6qq/shaihuludmaliciouspackages_an_continuously/"
+    },
+    {
+      "title": "What still fascinates me about software dev 15 years into my career",
+      "link": "https://www.reddit.com/r/programming/comments/1p9kpz2/what_still_fascinates_me_about_software_dev_15/"
     },
     {
       "title": "Thinning layers",
@@ -244,16 +244,20 @@
       "link": "https://www.reddit.com/r/programming/comments/1p98i8g/why_technical_debt_starts_in_the_boardroom/"
     },
     {
-      "title": "What still fascinates me about software dev 15 years into my career",
-      "link": "https://www.reddit.com/r/programming/comments/1p9kpz2/what_still_fascinates_me_about_software_dev_15/"
+      "title": "rs-utcp",
+      "link": "https://www.reddit.com/r/programming/comments/1p9rsa4/rsutcp/"
     },
     {
-      "title": "SharpSkill.fr - For the developers",
-      "link": "https://www.reddit.com/r/programming/comments/1p9q6x2/sharpskillfr_for_the_developers/"
+      "title": "Natural Language API, a New Approach to AI",
+      "link": "https://www.reddit.com/r/programming/comments/1p9u92r/natural_language_api_a_new_approach_to_ai/"
     },
     {
       "title": "story of how Akamai's CDN was critical to keeping the internet going during traffic surges in the 1990s",
       "link": "https://www.reddit.com/r/programming/comments/1p9683g/story_of_how_akamais_cdn_was_critical_to_keeping/"
+    },
+    {
+      "title": "SharpSkill.fr - For the developers",
+      "link": "https://www.reddit.com/r/programming/comments/1p9q6x2/sharpskillfr_for_the_developers/"
     },
     {
       "title": "Vibe Coding: The Final Form of Hyper-Individualism",
@@ -286,10 +290,6 @@
     {
       "title": "What do programmers actually do besides typing code?",
       "link": "https://www.reddit.com/r/programming/comments/1p9icgh/what_do_programmers_actually_do_besides_typing/"
-    },
-    {
-      "title": "Fixmas: Incident Response Advent Calendar",
-      "link": "https://www.reddit.com/r/programming/comments/1p952p1/fixmas_incident_response_advent_calendar/"
     },
     {
       "title": "Most Developers Call AI Data With APIs and A2A",

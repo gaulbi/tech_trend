@@ -10,6 +10,7 @@ from .scraper_factory import ScraperFactory
 from .content_cleaner import ContentCleaner
 from .models import TrendAnalysis, ScrapedTrend, ScrapedOutput
 from .exceptions import ValidationError, ConfigurationError
+from typing import Optional
 
 
 logger = logging.getLogger(__name__)

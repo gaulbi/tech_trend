@@ -1,32 +1,20 @@
-"""Ollama LLM client implementation."""
+"""Ollama local LLM client implementation."""
 
 import time
-
+from typing import Optional
 import requests
 
-from ..exceptions import LLMProviderError
 from .base import BaseLLMClient
+from ..exceptions import LLMError, NetworkError
 
 
 class OllamaClient(BaseLLMClient):
-    """Ollama local LLM client."""
-    
-    API_BASE_URL = "http://localhost:11434/api/generate"
-    
-    def __init__(self, model: str, timeout: int, max_retries: int):
-        """
-        Initialize Ollama client.
-        
-        Args:
-            model: Ollama model identifier
-            timeout: Request timeout in seconds
-            max_retries: Maximum number of retry attempts
-        """
-        super().__init__(model, timeout, max_retries)
-    
+    """Ollama local API client implementation."""
+
+    BASE_URL = "http://localhost:11434/api/generate"
+
     def generate(self, prompt: str) -> str:
-        """
-        Generate response using Ollama API.
+        """Generate response using Ollama API.
         
         Args:
             prompt: Input prompt text
@@ -35,29 +23,84 @@ class OllamaClient(BaseLLMClient):
             Generated response text
             
         Raises:
-            LLMProviderError: If generation fails after retries
+            LLMError: If generation fails
+            NetworkError: If network request fails
         """
+        headers = {
+            "Content-Type": "application/json"
+        }
+        
         payload = {
             "model": self.model,
             "prompt": prompt,
             "stream": False
         }
         
-        for attempt in range(self.max_retries):
+        return self._make_request_with_retry(headers, payload)
+
+    def _make_request_with_retry(
+        self, 
+        headers: dict, 
+        payload: dict
+    ) -> str:
+        """Make API request with exponential backoff retry.
+        
+        Args:
+            headers: Request headers
+            payload: Request payload
+            
+        Returns:
+            Generated response text
+            
+        Raises:
+            NetworkError: If all retry attempts fail
+            LLMError: If API returns an error
+        """
+        last_error: Optional[Exception] = None
+        
+        for attempt in range(self.retry_count):
             try:
                 response = requests.post(
-                    self.API_BASE_URL,
+                    self.BASE_URL,
+                    headers=headers,
                     json=payload,
                     timeout=self.timeout
                 )
-                response.raise_for_status()
-                data = response.json()
-                return data.get("response", "")
-            except (requests.RequestException, KeyError) as e:
-                if attempt < self.max_retries - 1:
+                
+                if response.status_code == 200:
+                    return self._parse_response(response.json())
+                else:
+                    raise LLMError(
+                        f"API error: {response.status_code} - "
+                        f"{response.text}"
+                    )
+                    
+            except requests.Timeout as e:
+                last_error = e
+                if attempt < self.retry_count - 1:
                     wait_time = 2 ** attempt
                     time.sleep(wait_time)
-                else:
-                    raise LLMProviderError(f"Ollama API error: {e}")
+            except requests.RequestException as e:
+                raise NetworkError(f"Network error: {str(e)}")
         
-        raise LLMProviderError("Max retries exceeded")
+        raise NetworkError(
+            f"Request failed after {self.retry_count} attempts: "
+            f"{str(last_error)}"
+        )
+
+    def _parse_response(self, response_data: dict) -> str:
+        """Parse API response.
+        
+        Args:
+            response_data: Response JSON data
+            
+        Returns:
+            Generated text content
+            
+        Raises:
+            LLMError: If response format is invalid
+        """
+        try:
+            return response_data["response"]
+        except KeyError as e:
+            raise LLMError(f"Invalid response format: {str(e)}")
