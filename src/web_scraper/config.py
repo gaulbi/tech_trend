@@ -106,3 +106,8 @@ class Config:
     def zenrows_key(self) -> str:
         """Get ZenRows key from environment."""
         return os.getenv('ZENROWS_KEY', '')
+    
+    @property
+    def log_dir(self) -> str:
+        """Get log directory path for web scraper logs."""
+        return self._config['scrap'].get('log', 'log/scrapped')
