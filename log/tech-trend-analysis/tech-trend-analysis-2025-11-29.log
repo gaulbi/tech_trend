@@ -1,9 +1,0 @@
-{"timestamp": "2025-11-29T17:32:58.180653", "level": "INFO", "message": "Starting tech trend analysis for 2025-11-29", "module": "main", "function": "main", "line": 219}
-{"timestamp": "2025-11-29T17:32:58.181241", "level": "INFO", "message": "Found 3 categories to process", "module": "main", "function": "main", "line": 234}
-{"timestamp": "2025-11-29T17:32:58.181305", "level": "INFO", "message": "Processing category: software_engineering", "module": "main", "function": "process_category", "line": 103, "category": "software_engineering"}
-{"timestamp": "2025-11-29T17:33:01.341758", "level": "INFO", "message": "Successfully analyzed category: software_engineering", "module": "main", "function": "process_category", "line": 116, "category": "software_engineering"}
-{"timestamp": "2025-11-29T17:33:01.341995", "level": "INFO", "message": "Processing category: ai_machine_learning", "module": "main", "function": "process_category", "line": 103, "category": "ai_machine_learning"}
-{"timestamp": "2025-11-29T17:33:04.295656", "level": "INFO", "message": "Successfully analyzed category: ai_machine_learning", "module": "main", "function": "process_category", "line": 116, "category": "ai_machine_learning"}
-{"timestamp": "2025-11-29T17:33:04.295863", "level": "INFO", "message": "Processing category: ai_hardware", "module": "main", "function": "process_category", "line": 103, "category": "ai_hardware"}
-{"timestamp": "2025-11-29T17:33:08.403231", "level": "INFO", "message": "Successfully analyzed category: ai_hardware", "module": "main", "function": "process_category", "line": 116, "category": "ai_hardware"}
-{"timestamp": "2025-11-29T17:33:08.403394", "level": "INFO", "message": "Analysis complete: 3/3 categories processed successfully", "module": "main", "function": "main", "line": 246}
