@@ -4,7 +4,7 @@ Package initialization files for the scrapped_content_embedder package.
 
 # src/scrapped_content_embedder/__init__.py
 """
-Scrapped Content Embedder Package
+Scraped Content Embedder Package
 
 A production-grade module for embedding scraped web content into ChromaDB
 using multiple embedding provider options.

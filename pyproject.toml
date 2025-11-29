@@ -31,7 +31,9 @@ dependencies = [
     "aiohttp",
     "pydantic",
     "httpx",
-    "readability-lxml"
+    "readability-lxml",
+    "torch",
+    "transformers"
 ]
 
 [tool.uv]

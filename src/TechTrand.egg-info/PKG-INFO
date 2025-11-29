@@ -31,6 +31,8 @@ Requires-Dist: aiohttp
 Requires-Dist: pydantic
 Requires-Dist: httpx
 Requires-Dist: readability-lxml
+Requires-Dist: torch
+Requires-Dist: transformers
 
 # Tech Trand
 

@@ -81,7 +81,7 @@ class URLScraper:
         """
         date_str = self.today.strftime('%Y-%m-%d')
         output_dir = self.config.scrapped_content_dir / date_str / category
-        return output_dir / "url-scrap.json"
+        return output_dir / "url-scrape.json"
     
     def _process_category(self, category_file: Path) -> None:
         """

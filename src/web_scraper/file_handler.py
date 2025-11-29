@@ -98,7 +98,7 @@ class FileHandler:
         Check if output file already exists for category.
         
         Args:
-            base_dir: Base directory for scrapped content
+            base_dir: Base directory for scraped content
             today_date: Today's date string (YYYY-MM-DD)
             category: Category name
             
@@ -106,7 +106,7 @@ class FileHandler:
             bool: True if output exists
         """
         output_path = (
-            Path(base_dir) / today_date / category / "web-scrap.json"
+            Path(base_dir) / today_date / category / "web-scrape.json"
         )
         return output_path.exists()
     
@@ -120,14 +120,14 @@ class FileHandler:
         Save scraped output to JSON file.
         
         Args:
-            base_dir: Base directory for scrapped content
+            base_dir: Base directory for scraped content
             today_date: Today's date string (YYYY-MM-DD)
             output: Scraped output data
         """
         output_dir = Path(base_dir) / today_date / output.category
         output_dir.mkdir(parents=True, exist_ok=True)
         
-        output_file = output_dir / "web-scrap.json"
+        output_file = output_dir / "web-scrape.json"
         
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(output.to_dict(), f, indent=2, ensure_ascii=False)

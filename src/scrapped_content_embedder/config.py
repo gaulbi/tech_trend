@@ -30,7 +30,7 @@ class EmbeddingConfig:
 @dataclass
 class Config:
     """Main configuration class."""
-    scrap: ScrapConfig
+    scrape: ScrapConfig
     embedding: EmbeddingConfig
     
     @classmethod
@@ -56,11 +56,11 @@ class Config:
             data = yaml.safe_load(f)
         
         # Validate required fields
-        if 'scrap' not in data or 'embedding' not in data:
-            raise ValueError("Config must contain 'scrap' and 'embedding' sections")
+        if 'scrape' not in data or 'embedding' not in data:
+            raise ValueError("Config must contain 'scrape' and 'embedding' sections")
         
         scrap_config = ScrapConfig(
-            url_scrapped_content=Path(data['scrap']['url-scrapped-content'])
+            url_scrapped_content=Path(data['scrape']['url-scraped-content'])
         )
         
         embedding_config = EmbeddingConfig(
@@ -72,4 +72,4 @@ class Config:
             database_path=Path(data['embedding']['database-path'])
         )
         
-        return cls(scrap=scrap_config, embedding=embedding_config)
+        return cls(scrape=scrap_config, embedding=embedding_config)

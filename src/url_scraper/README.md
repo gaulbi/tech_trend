@@ -26,10 +26,10 @@ Create a `config.yaml` file in the project root:
 tech-trend-analysis:
   analysis-report: data/tech-trend-analysis
 
-scrap:
-  url-scrapped-content: data/scrapped-content
+scrape:
+  url-scraped-content: data/scraped-content
   timeout: 60
-  log: log/scrapped-content
+  log: log/scraped-content
 ```
 
 ## Usage
@@ -44,7 +44,7 @@ The scraper will:
 2. Look for category files in `data/tech-trend-analysis/{TODAY}/`
 3. Skip categories that have already been processed
 4. Scrape URLs and extract clean content
-5. Save results to `data/scrapped-content/{TODAY}/{category}/url-scrap.json`
+5. Save results to `data/scraped-content/{TODAY}/{category}/url-scrape.json`
 
 ## Input Format
 
@@ -67,7 +67,7 @@ Input files: `data/tech-trend-analysis/{TODAY}/{category}.json`
 
 ## Output Format
 
-Output files: `data/scrapped-content/{TODAY}/{category}/url-scrap.json`
+Output files: `data/scraped-content/{TODAY}/{category}/url-scrape.json`
 
 ```json
 {
@@ -86,7 +86,7 @@ Output files: `data/scrapped-content/{TODAY}/{category}/url-scrap.json`
 
 ## Logging
 
-Logs are written to: `log/scrapped-content/url-scraper-{TODAY}.log`
+Logs are written to: `log/scraped-content/url-scraper-{TODAY}.log`
 
 Format: One JSON object per line
 
@@ -135,10 +135,10 @@ Running the scraper multiple times on the same day will:
 ├── data/
 │   ├── tech-trend-analysis/
 │   │   └── {TODAY}/            # Input files
-│   └── scrapped-content/
+│   └── scraped-content/
 │       └── {TODAY}/            # Output files
 └── log/
-    └── scrapped-content/       # Log files
+    └── scraped-content/       # Log files
 ```
 
 ## Code Quality

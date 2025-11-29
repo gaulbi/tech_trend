@@ -24,3 +24,5 @@ aiohttp
 pydantic
 httpx
 readability-lxml
+torch
+transformers

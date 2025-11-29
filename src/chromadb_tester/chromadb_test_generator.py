@@ -16,7 +16,7 @@ def create_sample_data():
     today = datetime.now().strftime("%Y-%m-%d")
     
     # Create directory structure
-    base_path = Path("data/scrapped-content") / today
+    base_path = Path("data/scraped-content") / today
     
     # Sample category 1: Software Engineering Dev
     category1_path = base_path / "software-engineering-dev"
@@ -79,7 +79,7 @@ def create_sample_data():
         ]
     }
     
-    with open(category1_path / "url-scrap.json", "w") as f:
+    with open(category1_path / "url-scrape.json", "w") as f:
         json.dump(sample_data_1, f, indent=2)
     
     # Sample category 2: AI and Machine Learning
@@ -126,12 +126,12 @@ def create_sample_data():
         ]
     }
     
-    with open(category2_path / "web-scrap.json", "w") as f:
+    with open(category2_path / "web-scrape.json", "w") as f:
         json.dump(sample_data_2, f, indent=2)
     
     print(f"✅ Sample data created in: {base_path}")
-    print(f"   - {category1_path / 'url-scrap.json'}")
-    print(f"   - {category2_path / 'web-scrap.json'}")
+    print(f"   - {category1_path / 'url-scrape.json'}")
+    print(f"   - {category2_path / 'web-scrape.json'}")
     print(f"\nYou can now run: python scrapped_content_embedder.py")
 
 

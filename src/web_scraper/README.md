@@ -43,8 +43,8 @@ Ensure `config.yaml` exists in the project root:
 ```yaml
 tech-trend-analysis:
   analysis-report: data/tech-trend-analysis
-scrap:
-  url-scrapped-content: data/scrapped-content
+scrape:
+  url-scraped-content: data/scraped-content
   timeout: 60
 ```
 
@@ -62,7 +62,7 @@ python web_scraper.py
 2. **Finds Input Files**: Scans `data/tech-trend-analysis/{TODAY_DATE}/` for JSON files
 3. **Checks for Existing Output**: Skips categories already processed today
 4. **Scrapes Content**: Fetches and cleans web content for each trend
-5. **Saves Results**: Writes to `data/scrapped-content/{TODAY_DATE}/{category}/web-scrap.json`
+5. **Saves Results**: Writes to `data/scraped-content/{TODAY_DATE}/{category}/web-scrape.json`
 
 ### Example Workflow
 
@@ -79,9 +79,9 @@ Running `python web_scraper.py` will:
 - Process each category file
 - Scrape URLs from the trends
 - Save cleaned content to:
-  - `data/scrapped-content/2025-11-28/software_engineering/web-scrap.json`
-  - `data/scrapped-content/2025-11-28/ai_ml/web-scrap.json`
-  - `data/scrapped-content/2025-11-28/cloud_computing/web-scrap.json`
+  - `data/scraped-content/2025-11-28/software_engineering/web-scrape.json`
+  - `data/scraped-content/2025-11-28/ai_ml/web-scrape.json`
+  - `data/scraped-content/2025-11-28/cloud_computing/web-scrape.json`
 
 Running it again the same day will skip all categories (idempotent).
 
@@ -105,7 +105,7 @@ Running it again the same day will skip all categories (idempotent).
 ├── data/
 │   ├── tech-trend-analysis/
 │   │   └── {YYYY-MM-DD}/       # Input: Daily trend analysis
-│   └── scrapped-content/
+│   └── scraped-content/
 │       └── {YYYY-MM-DD}/       # Output: Scraped content
 ├── .env                        # API keys (create this)
 ├── config.yaml                 # Configuration file
@@ -137,7 +137,7 @@ Running it again the same day will skip all categories (idempotent).
 
 ## Output Format
 
-**Path**: `data/scrapped-content/{TODAY_DATE}/{category}/web-scrap.json`
+**Path**: `data/scraped-content/{TODAY_DATE}/{category}/web-scrape.json`
 
 ```json
 {
@@ -184,7 +184,7 @@ Example log output:
 2025-11-28 10:30:15 - src.web_scraper.file_handler - INFO - Found 3 category files for 2025-11-28
 2025-11-28 10:30:15 - src.web_scraper.orchestrator - INFO - Processing category: software_engineering
 2025-11-28 10:30:16 - src.web_scraper.orchestrator - INFO - Scraping: https://example.com/rust-adoption
-2025-11-28 10:30:18 - src.web_scraper.file_handler - INFO - Saved output to data/scrapped-content/2025-11-28/software_engineering/web-scrap.json
+2025-11-28 10:30:18 - src.web_scraper.file_handler - INFO - Saved output to data/scraped-content/2025-11-28/software_engineering/web-scrape.json
 ```
 
 ## Idempotency

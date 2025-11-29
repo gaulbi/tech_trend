@@ -11,7 +11,7 @@ Usage:
 Requirements:
     - config.yaml: Configuration file with paths and settings
     - .env: API keys for embedding providers (if not using local)
-    - data/scrapped-content/{YYYY-MM-DD}/: Today's scraped content
+    - data/scraped-content/{YYYY-MM-DD}/: Today's scraped content
 """
 
 import logging

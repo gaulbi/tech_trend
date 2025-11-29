@@ -17,10 +17,10 @@
 ```yaml
 tech-trend-analysis:
   analysis-report: data/tech-trend-analysis     #Base source folder
-scrap:
-  url-scrapped-content: data/scrapped-content   #Base output folder
+scrape:
+  url-scraped-content: data/scraped-content   #Base output folder
   timeout: 60
-  log: log/scrapped-content 
+  log: log/scraped-content 
 ```
 
 **Validation**: Missing config.yaml → Raise `ConfigurationError` and exit.
@@ -63,11 +63,11 @@ If today is 2025-11-26:
 ## Output
 
 ### File Path
-`{scrap.url-scrapped-content}/{TODAY_DATE}/{category}/url-scrap.json`
+`{scrape.url-scraped-content}/{TODAY_DATE}/{category}/url-scrape.json`
 
 ### Example
 If today is 2025-11-26:
-`data/scrapped-content/2025-11-26/software_engineering/url-scrap.json`
+`data/scraped-content/2025-11-26/software_engineering/url-scrape.json`
 
 ### JSON Structure
 _Note: The output flattens the input. Each link from the input becomes a distinct object in the output list._
@@ -97,7 +97,7 @@ _Note: The output flattens the input. Each link from the input becomes a distinc
 ## Date Processing Logic
 - **Automatic Date Detection**: Module automatically determines today's date at runtime
 - **Input Directory**: Only scan `{analysis-report}/{TODAY_DATE}/` for category JSON files
-- **Output Directory**: Write all results to `{url-scrapped-content}/{TODAY_DATE}/{category}/`
+- **Output Directory**: Write all results to `{url-scraped-content}/{TODAY_DATE}/{category}/`
 - **No Historical Processing**: Ignore all data from previous dates
 
 ---
@@ -126,7 +126,7 @@ _Note: The output flattens the input. Each link from the input becomes a distinc
 ## Logging
 
 ### Format: JSON (one object per line)
-**File**: `{scrap.log}/url-scraper-{TODAY_DATE}.log`
+**File**: `{scrape.log}/url-scraper-{TODAY_DATE}.log`
 
 ---
 
@@ -139,7 +139,7 @@ _Note: The output flattens the input. Each link from the input becomes a distinc
 ├── data/
 │   ├── tech-trend-analysis/
 │   │   └── {TODAY_DATE}/      # Only process this directory
-│   └── scrapped-content/
+│   └── scraped-content/
 │       └── {TODAY_DATE}/      # Only write to this directory
 ├── .env                        # API keys (gitignored)
 ├── config.yaml                 # Configuration file
@@ -149,7 +149,7 @@ _Note: The output flattens the input. Each link from the input becomes a distinc
 ## Idempotency
 Before scraping each category:
 - Check if the output file exists at:
-`{scrap.url-scrapped-content}/{TODAY_DATE}/{category}/web-scrap.json`
+`{scrape.url-scraped-content}/{TODAY_DATE}/{category}/web-scrape.json`
 - If exists → Log INFO, print "Skipping {category} (already processed for {TODAY_DATE})", do not scrape again.
 
 ---

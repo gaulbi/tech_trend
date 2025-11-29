@@ -26,11 +26,11 @@ A production-grade Python module for embedding scraped web content into ChromaDB
 │       ├── embedding_clients.py              # Embedding provider clients
 │       └── embedder.py                       # Main embedder logic
 ├── data/
-│   ├── scrapped-content/                     # Input scraped content
+│   ├── scraped-content/                     # Input scraped content
 │   │   └── YYYY-MM-DD/
 │   │       └── category-name/
-│   │           ├── url-scrap.json
-│   │           └── web-scrap.json
+│   │           ├── url-scrape.json
+│   │           └── web-scrape.json
 │   └── embedding/                            # ChromaDB database
 ├── config.yaml                               # Configuration file
 ├── .env                                      # API keys (gitignored)
@@ -44,8 +44,8 @@ A production-grade Python module for embedding scraped web content into ChromaDB
 ### 1. Clone or create the project structure
 
 ```bash
-mkdir scrapped-content-embedder
-cd scrapped-content-embedder
+mkdir scraped-content-embedder
+cd scraped-content-embedder
 ```
 
 ### 2. Install dependencies
@@ -74,8 +74,8 @@ GOOGLE_API_KEY=AIza...
 Edit `config.yaml` to match your setup:
 
 ```yaml
-scrap:
-  url-scrapped-content: data/scrapped-content
+scrape:
+  url-scraped-content: data/scraped-content
 
 embedding:
   chunk-size: 1000
@@ -101,14 +101,14 @@ python scrapped_content_embedder.py
 The embedder expects scraped content in the following structure:
 
 ```
-data/scrapped-content/
+data/scraped-content/
 └── 2025-11-23/
     ├── software-engineering-dev/
-    │   ├── url-scrap.json
-    │   └── web-scrap.json
+    │   ├── url-scrape.json
+    │   └── web-scrape.json
     └── ai-chips-ai-hardware-infrastructure/
-        ├── url-scrap.json
-        └── web-scrap.json
+        ├── url-scrape.json
+        └── web-scrape.json
 ```
 
 Each JSON file should follow this schema:
@@ -246,7 +246,7 @@ Logs are written to both console and `embedder.log`:
 2025-11-23 10:00:00 - root - INFO - Starting Scraped Content Embedder
 2025-11-23 10:00:01 - root - INFO - Configuration loaded - Provider: sentence-transformers
 2025-11-23 10:00:02 - ScrapedContentEmbedder - INFO - ChromaDB initialized at data/embedding
-2025-11-23 10:00:03 - ScrapedContentEmbedder - INFO - Processing content from: data/scrapped-content/2025-11-23
+2025-11-23 10:00:03 - ScrapedContentEmbedder - INFO - Processing content from: data/scraped-content/2025-11-23
 2025-11-23 10:00:04 - ScrapedContentEmbedder - INFO - Processing category: software-engineering-dev
 2025-11-23 10:00:05 - ScrapedContentEmbedder - INFO - Embedded 3 chunks from trend: New Python 3.13 Features
 ```
@@ -264,7 +264,7 @@ Logs are written to both console and `embedder.log`:
 
 Make sure your scraped content follows the expected directory structure:
 ```
-data/scrapped-content/YYYY-MM-DD/category-name/*.json
+data/scraped-content/YYYY-MM-DD/category-name/*.json
 ```
 
 ### "API key not found"

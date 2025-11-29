@@ -438,7 +438,7 @@ class ScrapedContentEmbedder:
             Summary dictionary with processing statistics and errors
         """
         today = datetime.now().strftime("%Y-%m-%d")
-        base_path = self.config.scrap.url_scrapped_content / today
+        base_path = self.config.scrape.url_scrapped_content / today
         
         self.logger.info("="*80)
         self.logger.info(f"Starting embedding process for date: {today}")

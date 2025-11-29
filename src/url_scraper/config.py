@@ -55,9 +55,9 @@ class Config:
         """
         required_keys = [
             ("tech-trend-analysis", "analysis-report"),
-            ("scrap", "url-scrapped-content"),
-            ("scrap", "timeout"),
-            ("scrap", "log")
+            ("scrape", "url-scraped-content"),
+            ("scrape", "timeout"),
+            ("scrape", "log")
         ]
         
         for *parents, key in required_keys:
@@ -84,15 +84,15 @@ class Config:
     
     @property
     def scrapped_content_dir(self) -> Path:
-        """Get scrapped content base directory."""
-        return Path(self.config["scrap"]["url-scrapped-content"])
+        """Get scraped content base directory."""
+        return Path(self.config["scrape"]["url-scraped-content"])
     
     @property
     def timeout(self) -> int:
         """Get request timeout in seconds."""
-        return int(self.config["scrap"]["timeout"])
+        return int(self.config["scrape"]["timeout"])
     
     @property
     def log_dir(self) -> Path:
         """Get log directory."""
-        return Path(self.config["scrap"]["log"])
+        return Path(self.config["scrape"]["log"])
