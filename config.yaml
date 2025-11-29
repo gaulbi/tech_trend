@@ -1,0 +1,36 @@
+rss:
+  rss-list: rss/rss-list.json    # RSS sources
+  rss-feed: data/rss/rss-feed          # Output directory
+  log: log/rss-fetch                   # Log directory
+  max-concurrent: 10                   # Max parallel requests
+  timeout: 30                          # HTTP timeout (seconds)
+  retry: 3                             # Max retry attempts
+tech-trend-analysis:
+  prompt: prompt/tech-trend-analysis-prompt.md
+  analysis-report: data/tech-trend-analysis
+  log: log/tech-trend-analysis
+llm:
+  server: openai
+  llm-model: gpt-5.1
+  timeout: 60
+  retry: 3 
+scrap:
+  url-scrapped-content: data/scrapped-content
+  log: log/scrapped
+  timeout: 60
+article-generator:
+  system-prompt: prompt/article-system-prompt.md
+  user-prompt: prompt/article-user-prompt.md
+  tech-trend-article: data/tech-trend-article
+  log: log/article-generator
+embedding:
+  chunk-size: 1000
+  chunk-overlap: 200
+  embedding-provider: openai  # openai, voyageai, gemini, sentence-transformers
+  embedding-model: text-embedding-3-small
+  timeout: 60
+  max-retries: 3
+  batch-size: 50  # Number of texts to embed in one API call
+  database-path: data/embedding
+  ktop: 20
+  log: log/embedding

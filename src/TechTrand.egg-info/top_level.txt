@@ -1,0 +1,8 @@
+api_scrapper
+article_generator
+chromadb_tester
+rss_fetcher
+scrapped_content_embedder
+tech_trend_analysis
+url_scrapper
+web_scraper

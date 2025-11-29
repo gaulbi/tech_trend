@@ -1,0 +1,15 @@
+{
+  "analysis_date": "2025-11-28",
+  "category": "ai_hardware",
+  "trends": [
+    {
+      "topic": "China unveils hybrid-bonded 14nm AI accelerators claimed to rival Nvidia Blackwell GPUs",
+      "reason": "A leading Chinese semiconductor expert is touting domestically designed 14nm, 3D hybrid-bonded AI accelerators as competitive with Nvidia's latest 4nm Blackwell GPUs, signaling a potential shift in the global AI hardware landscape and a path to sanction-resistant, fully controllable domestic compute for Chinese firms.",
+      "links": [
+        "https://www.tomshardware.com/tech-industry/semiconductors/china-claims-14nm-ai-chip-can-rival-nvidia-4nm-gpus",
+        "https://www.tomshardware.com/tech-industry/artificial-intelligence/chinas-hybrid-bonded-ai-accelerators-could-rival-nvidias-blackwell-gpus-top-semiconductor-expert-hints-at-fully-controllable-domestic-solution"
+      ],
+      "search_keywords": "China hybrid bonded AI accelerator, 14nm logic 120 TFLOPS, Nvidia Blackwell competitor, domestic AI GPU China, 3D hybrid bonding accelerator, fully controllable domestic solution"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "analysis_date": "2025-11-29",
+  "category": "ai_hardware",
+  "trends": [
+    {
+      "topic": "China’s domestic 14nm 3D-bonded AI accelerator claims performance on par with Nvidia 4nm GPUs",
+      "reason": "A Chinese team is claiming that a homegrown 14nm AI logic chip using advanced 3D hybrid bonding can rival Nvidia’s cutting-edge 4nm GPUs with a stated 120 TFLOPS, signaling a potentially major shift in AI hardware geopolitics, export-control workarounds, and data center accelerator competition.",
+      "links": [
+        "https://www.tomshardware.com/tech-industry/semiconductors/china-claims-14nm-ai-chip-can-rival-nvidia-4nm-gpus"
+      ],
+      "search_keywords": "China AI chip, 14nm, 3D hybrid bonding, Nvidia GPU, 120 TFLOPS, data center"
+    }
+  ]
+}

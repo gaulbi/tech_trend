@@ -1,0 +1,14 @@
+{
+  "analysis_date": "2025-11-29",
+  "category": "software_engineering",
+  "trends": [
+    {
+      "topic": "Kubernetes Community Deprecates and Retires the Ingress NGINX Controller",
+      "reason": "The Kubernetes community’s decision to retire the widely used Ingress NGINX controller marks a major shift for production clusters, forcing platform and application teams to re-evaluate and migrate critical ingress traffic paths on a tight timeline.",
+      "links": [
+        "https://www.infoq.com/news/2025/11/kubernetes-ingress-nginx/?utm_campaign=infoq_content&utm_source=infoq&utm_medium=feed&utm_term=global"
+      ],
+      "search_keywords": "Kubernetes, Ingress NGINX, controller deprecation, CNCF, cluster networking"
+    }
+  ]
+}
