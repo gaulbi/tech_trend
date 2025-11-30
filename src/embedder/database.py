@@ -15,14 +15,13 @@ logger = logging.getLogger(__name__)
 class ChromaDatabase:
     """ChromaDB wrapper with idempotency support."""
 
-    COLLECTION_NAME = "embeddings"
-
-    def __init__(self, database_path: str) -> None:
+    def __init__(self, database_path: str, collection_name: str) -> None:
         """
         Initialize ChromaDB client.
 
         Args:
             database_path: Path to ChromaDB storage directory.
+            collection_name: Name of the ChromaDB collection.
 
         Raises:
             DatabaseError: If initialization fails.
@@ -36,11 +35,11 @@ class ChromaDatabase:
             )
 
             self.collection = self.client.get_or_create_collection(
-                name=self.COLLECTION_NAME,
+                name=collection_name,
                 metadata={"hnsw:space": "cosine"},
             )
 
-            logger.info(f"Connected to ChromaDB at {database_path}")
+            logger.info(f"Connected to ChromaDB at {database_path}, collection: {collection_name}")
         except Exception as e:
             raise DatabaseError(
                 f"Failed to initialize ChromaDB: {e}"

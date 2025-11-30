@@ -26,6 +26,7 @@ article-generator:
 embedding:
   chunk-size: 1000
   chunk-overlap: 200
+  collection-name: tech_trends
   embedding-provider: openai  # openai, voyageai, gemini, sentence-transformers
   embedding-model: text-embedding-3-small
   timeout: 60

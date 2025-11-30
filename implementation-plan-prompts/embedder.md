@@ -79,12 +79,12 @@ If today is 2025-11-21:
 - Persistence Path: `{embedding.database-path}`
 
 ### Database Schema (ChromaDB Metadata & ID)
-- ID Format: `{category}|{TARGET_DATE}|{url_hash}|chunk_{chunk_index}` (Use a hash of the URL to ensure uniqueness)
+- ID Format: `{category}|{TODAY_DATE}|{url_hash}|chunk_{chunk_index}` (Use a hash of the URL to ensure uniqueness)
 - Document: The text chunk
 - Metadata:
  - `url`: trends.link from input file
  - `category`: category from input file
- - `embedding_date`: {TARGET_DATE}
+ - `embedding_date`: {TODAY_DATE}
  - `source_file`: Full path to input JSON
  - `chunk_index`: Integer
 
@@ -109,7 +109,7 @@ If today is 2025-11-21:
 │   └── embedder/            # Package
 ├── data/
 │   └── embedding/           # ChromaDB database
-│   └── scraped-content/    # ChromaDB database
+│   └── scraped-content/    # base input folder
 ├── config.yaml              # Configuration file
 ```
 

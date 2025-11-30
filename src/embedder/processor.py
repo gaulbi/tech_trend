@@ -47,7 +47,7 @@ class EmbeddingProcessor:
             max_retries=config.max_retries,
         )
 
-        self.database = ChromaDatabase(config.database_path)
+        self.database = ChromaDatabase(config.database_path, config.collection_name)
 
         logger.info(
             f"Initialized processor with {config.embedding_provider} "

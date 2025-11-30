@@ -116,6 +116,11 @@ class Config:
         """Get path to log directory."""
         return self._config["embedding"].get("log", "log/embedding")
 
+    @property
+    def collection_name(self) -> str:
+        """Get collection name for embeddings."""
+        return self._config["embedding"].get("collection-name", "tech_trends")
+
 
 def load_config(config_path: str = "config.yaml") -> Config:
     """
