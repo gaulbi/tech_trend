@@ -13,10 +13,10 @@ class ConfigurationError(WebScraperError):
 
 
 class ValidationError(WebScraperError):
-    """Raised when data validation fails."""
+    """Raised when input data validation fails."""
     pass
 
 
 class ScraperAPIError(WebScraperError):
-    """Raised when scraper API calls fail."""
+    """Raised when scraper API requests fail."""
     pass

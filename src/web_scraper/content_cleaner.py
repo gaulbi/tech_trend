@@ -2,58 +2,41 @@
 """Content cleaning utilities."""
 
 import re
-import logging
 from typing import Optional
 
 from readability import Document
-from bs4 import BeautifulSoup
-
-
-logger = logging.getLogger(__name__)
 
 
 class ContentCleaner:
-    """Cleans and extracts readable text from HTML content."""
-    
-    MIN_CONTENT_LENGTH = 50
+    """Clean and extract readable content from HTML."""
     
     @staticmethod
-    def clean(html_content: str) -> Optional[str]:
+    def clean(html: str) -> Optional[str]:
         """
-        Extract and clean readable text from HTML.
+        Extract clean, readable text from HTML.
         
         Args:
-            html_content: Raw HTML content
+            html: Raw HTML content
             
         Returns:
-            Optional[str]: Cleaned text content or None
+            Cleaned text content or None if cleaning failed
         """
-        if not html_content or not html_content.strip():
-            logger.warning("Empty HTML content provided")
+        if not html:
             return None
         
         try:
-            # Extract main content using readability
-            doc = Document(html_content)
-            readable_html = doc.summary()
+            # Use readability to extract main content
+            doc = Document(html)
+            content = doc.summary()
             
-            # Parse with BeautifulSoup for robust text extraction
-            soup = BeautifulSoup(readable_html, 'html.parser')
-            text = soup.get_text(separator=' ', strip=True)
+            # Remove HTML tags
+            text = re.sub(r'<[^>]+>', ' ', content)
             
             # Normalize whitespace
             text = re.sub(r'\s+', ' ', text)
             text = text.strip()
             
-            # Validate minimum length
-            if len(text) < ContentCleaner.MIN_CONTENT_LENGTH:
-                logger.warning(
-                    f"Content too short: {len(text)} chars"
-                )
-                return None
+            return text if text else None
             
-            return text
-            
-        except Exception as e:
-            logger.error(f"Failed to clean content: {e}", exc_info=True)
+        except Exception:
             return None

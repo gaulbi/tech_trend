@@ -18,6 +18,7 @@ scrape:
   url-scraped-content: data/scraped-content
   log: log/scraped
   timeout: 60
+  max-search-results: 5
 article-generator:
   system-prompt: prompt/article-system-prompt.md
   user-prompt: prompt/article-user-prompt.md

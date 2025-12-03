@@ -1,65 +1,56 @@
 # src/web_scraper/scraper_factory.py
-"""Factory for creating web scraper clients."""
+"""Factory for creating scraper clients."""
 
-import logging
+import os
 from typing import Optional
 
-from .scraper_base import BaseWebScraper
+from dotenv import load_dotenv
+
 from .scraper_clients import (
+    BaseScraperClient,
     ScraperAPIClient,
     ScrapingBeeClient,
     ZenRowsClient
 )
-from .config import Config
-
-
-logger = logging.getLogger(__name__)
+from .exceptions import ConfigurationError
 
 
 class ScraperFactory:
-    """Factory for creating appropriate web scraper client."""
+    """Factory for creating appropriate scraper client."""
     
-    @staticmethod
-    def create_scraper(config: Config) -> Optional[BaseWebScraper]:
+    def __init__(self):
+        """Initialize factory and load environment variables."""
+        load_dotenv()
+    
+    def create_client(self, timeout: int = 60) -> BaseScraperClient:
         """
-        Create a web scraper client based on available API keys.
-        Priority: ScraperAPI > ScrapingBee > ZenRows
+        Create scraper client based on available API keys.
         
         Args:
-            config: Configuration object
+            timeout: Request timeout in seconds
             
         Returns:
-            Optional[BaseWebScraper]: Scraper client or None
+            Configured scraper client instance
+            
+        Raises:
+            ConfigurationError: If no valid API key found
         """
-        if config.scraperapi_key:
-            logger.info("Using ScraperAPI")
-            try:
-                return ScraperAPIClient(
-                    config.scraperapi_key, 
-                    config.timeout
-                )
-            except ValueError as e:
-                logger.error(f"ScraperAPI initialization failed: {e}")
+        # Try ScraperAPI first
+        api_key = os.getenv('SCRAPERAPI_KEY')
+        if api_key:
+            return ScraperAPIClient(api_key=api_key, timeout=timeout)
         
-        if config.scrapingbee_key:
-            logger.info("Using ScrapingBee")
-            try:
-                return ScrapingBeeClient(
-                    config.scrapingbee_key, 
-                    config.timeout
-                )
-            except ValueError as e:
-                logger.error(f"ScrapingBee initialization failed: {e}")
+        # Try ScrapingBee
+        api_key = os.getenv('SCRAPINGBEE_KEY')
+        if api_key:
+            return ScrapingBeeClient(api_key=api_key, timeout=timeout)
         
-        if config.zenrows_key:
-            logger.info("Using ZenRows")
-            try:
-                return ZenRowsClient(
-                    config.zenrows_key, 
-                    config.timeout
-                )
-            except ValueError as e:
-                logger.error(f"ZenRows initialization failed: {e}")
+        # Try ZenRows
+        api_key = os.getenv('ZENROWS_KEY')
+        if api_key:
+            return ZenRowsClient(api_key=api_key, timeout=timeout)
         
-        logger.error("No valid scraper API key found in environment")
-        return None
+        raise ConfigurationError(
+            "No scraper API key found in .env file. "
+            "Please set SCRAPERAPI_KEY, SCRAPINGBEE_KEY, or ZENROWS_KEY"
+        )

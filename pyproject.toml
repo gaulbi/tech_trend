@@ -33,7 +33,8 @@ dependencies = [
     "httpx",
     "readability-lxml",
     "torch",
-    "transformers"
+    "transformers",
+    "wikipedia"
 ]
 
 [tool.uv]

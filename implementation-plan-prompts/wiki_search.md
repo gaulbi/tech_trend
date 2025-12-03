@@ -1,14 +1,14 @@
-# Web Scraper
+# Wiki Search
 
 ## Role Definition
 **Role**: You are an expert Python developer specializing in clean architecture and production-grade code.
-**Tasks**: Generate a complete Python module implementation based on this plan.
+**Tasks**: Generate a complete Python module implementation based on the detailed requirements below.
 
 ---
 
 ## Module Overview
 
-**Purpose**: Search keywords on the Internet using web scraper APIs and store cleaned content.  
+**Purpose**: Search keywords against Wikipedia, extract/clean content, and store cleaned content.  
 The module must be production-ready with comprehensive error handling, retry logic, and logging.
 **Behavior**: Single-run batch processor for **today's date only** with idempotent behavior (skip categories that already have output files).
 
@@ -19,12 +19,11 @@ The module must be production-ready with comprehensive error handling, retry log
 ### File: `./config.yaml`
 ```yaml
 tech-trend-analysis:
-  analysis-report: data/tech-trend-analysis
+  analysis-report: data/tech-trend-analysis   #Base source folder
 scrape:
-  url-scraped-content: data/scraped-content
-  timeout: 60
-  log: log/scraped-content                     # Log directory
-  max-search-results: 5                       # NEW: Max number of search results to scrape per query
+  url-scraped-content: data/scraped-content   #Base output folder
+  log: log/scraped-content                        # Log directory
+  max-search-results: 5                        # Max number of search results to search per query
 ```
 
 **Validation**: Missing config.yaml → Raise `ConfigurationError` and exit.
@@ -53,8 +52,8 @@ If today is 2025-11-26:
       "reason": "...",
       "links": ["..."],
       "search_keywords": [
-        "zero knowledge proof privacy protocol", 
-        "decentralized identity verifiable credentials"]
+        "frontier‑class AI models", 
+        "AI capability diffusion"]
     }
   ]
 }
@@ -69,11 +68,11 @@ If today is 2025-11-26:
 ## Output
 
 ### File Path
-`{scrape.url-scraped-content}/{TODAY_DATE}/{category}/web-scrape.json`
+`{scrape.url-scraped-content}/{TODAY_DATE}/{category}/wiki-search.json`
 
 ### Example
 If today is 2025-11-26:
-`data/scraped-content/2025-11-26/software_engineering/web-scrape.json`
+`data/scraped-content/2025-11-26/software_engineering/wiki-search.json`
 
 ### JSON Structure
 ```json
@@ -86,55 +85,44 @@ If today is 2025-11-26:
       "query_used": "...",          // The exact query string used for this result
       "link": "...",
       "content": "...",
-      "source_search_terms": ["...", "..."] // List of terms split from query_used
     }
   ]
 }
 ```
-_Note: One input trend may result in multiple output trend objects (one per successfully scraped link)._
+**Note**: 
+- One input trend may result in multiple output trend objects
+- Every Wikipedia page scraped should appear separately in `trends`.
 
 ## Date Processing Logic
 - **Automatic Date Detection**: Module automatically determines today's date at runtime
-- **Input Directory**: Only scan `{analysis-report}/{TODAY_DATE}/` for category JSON files
-- **Output Directory**: Write all results to `{url-scraped-content}/{TODAY_DATE}/{category}/`
+- **Input Directory**: Only scan `{tech-trend-analysis.analysis-report}/{TODAY_DATE}/` for category JSON files
+- **Output Directory**: Write all results to `{scrape.url-scraped-content}/{TODAY_DATE}/{category}/`
 - **No Historical Processing**: Ignore all data from previous dates
 
 ---
 
-### Web Scraper Execution Logic (CRITICAL)
-For each trend object in the input:
-1. Iterate through the `search_keywords` array.
-2. For each query string (e.g., `"term1 term2 term3"`): 
- a. **Search Phase**: 
-  - Construct a search engine URL (e.g., `https://www.google.com/search?q=term1+term2+term3`).
-  - **Route this request through the Web Scraper API** to avoid IP blocking
-  - Parse the HTML response to extract the top `{scrape.max-search-results}` article URLs.
- b. **Scrape Phase**:
-  - For each extracted article URL, make a **new request** via the Web Scraper API to fetch the page content.
-c. **Clean Phase**: 
- - Clean the scraped HTML content (remove boilerplate, navs, ads).
-d. **Output**: 
- - Append a new object to the output list for **EACH** successfully scraped article.
+### Wikiepedia Search Logic
+For each category → each trend → each keyword:
+1. **Treat the search keyword string** exactly as provided (no tokenization).  
+  Example: "frontier class AI models" is used as-is.
+2. **Perform search**
+- Use the `wikipedia` package
+- Retrieve up to `{scrape.max-search-results}` titles
+3. **Fetch page content** for each title found
+4. **Clean content**
+- Remove citation markers (`[1]`, `[23]`, `[citation needed]`)
+- Remove entire section headings like `"== References =="` and anything after
+- Normalize whitespace (collapse multiple spaces/newlines)
+5. **Append cleaned content** as a trend entry
 
 ---
-
-## Multi Web Scraper Provider Support
-- Support multiple Web Scraper providers: **ScraperAPI**, **ScrapingBee**, **ZenRows** 
-- Use a **Factory Pattern** to create appropriate scraper clients.
-- All Scraper clients must inherit from an **Abstract Base Class**
-- **Important**: The scraper client must support generic URL fetching (used for both the Google Search URL and the Article URL).
-- Load API keys from **`.env` file**
-
-## Clean Content
-- Use a standard Python library such as readability-lxml, BeautifulSoup, or similar to extract readable text.
-- Remove irrelevant characters and normalize whitespace.
 
 ## Error Handling
 
 ### Network Errors
-- **Timeout**: 60s
+- **Timeout**: use the default timeout(15s) of wikipedia API
 - **Retry**: 3 attempts with exponential backoff (1s, 2s, 4s)
-- **Action**: Log ERROR, skip scraping that trend, continue
+- **Action**: Log ERROR, skip search that trend, continue
 
 ### File/Parsing Errors
 - Missing config.yaml → Raise ConfigurationError
@@ -146,15 +134,15 @@ d. **Output**:
 ## Logging
 
 ### Format: JSON (one object per line)
-**File**: `{scrape.log}/web-scraper-{TODAY_DATE}.log`
+**File**: `{scrape.log}/wiki-search-{TODAY_DATE}.log`
 ---
 
 ## Project Structure
 ```
 .
-├── web_scraper.py              # Main entry point
+├── wiki_search.py              # Main entry point
 ├── src/
-│   └── web_scraper/            # Package
+│   └── wiki_search/            # Package
 ├── data/
 │   ├── tech-trend-analysis/
 │   │   └── {TODAY_DATE}/      # Only process this directory
@@ -168,8 +156,8 @@ d. **Output**:
 ## Idempotency
 Before scraping each category:
 - Check if the output file exists at:
-`{scrape.url-scraped-content}/{TODAY_DATE}/{category}/web-scrape.json`
-- If exists → Log INFO, print "Skipping {category} (already processed for {TODAY_DATE})", do not scrape again.
+`{scrape.url-scraped-content}/{TODAY_DATE}/{category}/wiki-search.json`
+- If exists → Log INFO, print "Skipping {category} (already processed for {TODAY_DATE})", do not search again.
 
 ---
 
@@ -186,7 +174,7 @@ Before scraping each category:
 ## Success Criteria
 
 - Automatically processes only today's date without manual date input
-- Searching, scrapping, cleaning, and storing web content successfully for today's categories
+- Searching, cleaning, and storing wiki content successfully for today's categories
 - Invalid search response don't stop execution
 - Idempotent: Running twice on same day produces same results
 - All code has type hints and docstrings
@@ -199,8 +187,3 @@ Before scraping each category:
 ### DO NOT GENERATE
 - `config.yaml` (provided at runtime)
 - Test files
-
-## Environment Setup (.env file)
-SCRAPERAPI_KEY=...
-SCRAPINGBEE_KEY=...
-ZENROWS_KEY=...

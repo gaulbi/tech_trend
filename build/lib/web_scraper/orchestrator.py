@@ -2,176 +2,151 @@
 """Main orchestration logic for web scraper."""
 
 import logging
+from datetime import date
+from pathlib import Path
 from typing import List
 
 from .config import Config
-from .file_handler import FileHandler
+from .logger import setup_logger
 from .scraper_factory import ScraperFactory
-from .content_cleaner import ContentCleaner
-from .models import TrendAnalysis, ScrapedTrend, ScrapedOutput
-from .exceptions import ValidationError, ConfigurationError
-from typing import Optional
-
-
-logger = logging.getLogger(__name__)
+from .file_processor import FileProcessor
+from .scraper import WebScraper
+from .models import OutputData
+from .exceptions import ValidationError
 
 
 class ScraperOrchestrator:
     """Orchestrates the web scraping process."""
     
-    def __init__(self) -> None:
-        """Initialize orchestrator with configuration."""
-        self.config = Config()
-        self.file_handler = FileHandler()
-        self.scraper = ScraperFactory.create_scraper(self.config)
-        self.cleaner = ContentCleaner()
-        
-        if not self.scraper:
-            raise ConfigurationError(
-                "No valid scraper API key found in environment. "
-                "Please add SCRAPERAPI_KEY, SCRAPINGBEE_KEY, "
-                "or ZENROWS_KEY to your .env file."
-            )
-    
-    def run(self) -> None:
-        """Execute the main scraping workflow."""
-        today_date = self.file_handler.get_today_date()
-        logger.info(f"Processing data for {today_date}")
-        
-        input_files = self.file_handler.get_input_files(
-            self.config.analysis_report_dir,
-            today_date
-        )
-        
-        if not input_files:
-            logger.warning(
-                f"No input files found for {today_date}. Exiting."
-            )
-            return
-        
-        for file_path in input_files:
-            self._process_category(file_path, today_date)
-    
-    def _process_category(self, file_path, today_date: str) -> None:
+    def __init__(self, config_path: str = "config.yaml"):
         """
-        Process a single category file.
+        Initialize orchestrator.
         
         Args:
-            file_path: Path to category JSON file
-            today_date: Today's date string (YYYY-MM-DD)
+            config_path: Path to configuration file
         """
+        self.config = Config(config_path)
+        self.today = date.today()
+        self.logger = setup_logger(
+            self.config.get('scrape.log'),
+            self.today
+        )
+        
+        # Initialize scraper
+        factory = ScraperFactory()
+        client = factory.create_client(
+            timeout=self.config.get('scrape.timeout')
+        )
+        
+        self.scraper = WebScraper(
+            client=client,
+            max_results=self.config.get('scrape.max-search-results'),
+            logger=self.logger
+        )
+        
+        self.file_processor = FileProcessor()
+    
+    def run(self) -> None:
+        """Execute the web scraping process."""
+        self.logger.info(f"Starting web scraper for {self.today}")
+        
+        # Get input directory for today
+        input_dir = self._get_input_dir()
+        
+        if not input_dir.exists():
+            self.logger.warning(
+                f"No input directory found for {self.today}. Exiting."
+            )
+            print(f"No data to process for {self.today}")
+            return
+        
+        # Get input files
+        input_files = self.file_processor.get_input_files(input_dir)
+        
+        if not input_files:
+            self.logger.warning(
+                f"No input files found for {self.today}. Exiting."
+            )
+            print(f"No input files to process for {self.today}")
+            return
+        
+        self.logger.info(f"Found {len(input_files)} categories to process")
+        
+        # Process each category
+        for input_file in input_files:
+            self._process_category(input_file)
+        
+        self.logger.info("Web scraping completed")
+    
+    def _get_input_dir(self) -> Path:
+        """Get input directory for today's date."""
+        base_dir = Path(self.config.get('tech-trend-analysis.analysis-report'))
+        return base_dir / self.today.strftime('%Y-%m-%d')
+    
+    def _get_output_path(self, category: str) -> Path:
+        """Get output file path for category."""
+        base_dir = Path(self.config.get('scrape.url-scraped-content'))
+        date_dir = base_dir / self.today.strftime('%Y-%m-%d')
+        return date_dir / category / 'web-scrape.json'
+    
+    def _process_category(self, input_file: Path) -> None:
+        """Process a single category file."""
+        category = input_file.stem
+        
         try:
-            analysis = self.file_handler.load_trend_analysis(file_path)
-            category = analysis.category
-            
             # Check idempotency
-            if self.file_handler.output_exists(
-                self.config.scrapped_content_dir,
-                today_date,
-                category
-            ):
-                message = (
-                    f"Skipping {category} "
-                    f"(already processed for {today_date})"
+            output_path = self._get_output_path(category)
+            
+            if self.file_processor.output_exists(output_path):
+                self.logger.info(
+                    f"Skipping {category} (already processed for {self.today})"
                 )
-                logger.info(message)
-                print(message)
+                print(
+                    f"Skipping {category} (already processed for {self.today})"
+                )
                 return
             
-            logger.info(f"Processing category: {category}")
-            scraped_trends = self._scrape_trends(analysis.trends)
+            # Read input
+            self.logger.info(f"Processing category: {category}")
+            input_data = self.file_processor.read_input_file(input_file)
             
-            if not scraped_trends:
-                logger.warning(
-                    f"No trends successfully scraped for {category}"
-                )
+            if not input_data:
+                return
             
-            output = ScrapedOutput(
-                analysis_date=today_date,
+            # Scrape content
+            all_scraped = []
+            
+            for trend in input_data.trends:
+                self.logger.info(f"Processing trend: {trend.topic}")
+                
+                try:
+                    scraped = self.scraper.scrape_trend(trend)
+                    all_scraped.extend(scraped)
+                except Exception as e:
+                    self.logger.error(
+                        f"Error scraping trend {trend.topic}: {e}"
+                    )
+                    continue
+            
+            # Write output
+            output_data = OutputData(
+                analysis_date=input_data.analysis_date,
                 category=category,
-                trends=scraped_trends
+                trends=all_scraped
             )
             
-            self.file_handler.save_output(
-                self.config.scrapped_content_dir,
-                today_date,
-                output
+            self.file_processor.write_output_file(output_path, output_data)
+            
+            self.logger.info(
+                f"Completed {category}: scraped {len(all_scraped)} articles"
+            )
+            print(
+                f"Completed {category}: scraped {len(all_scraped)} articles"
             )
             
         except ValidationError as e:
-            logger.error(f"Validation error in {file_path}: {e}")
+            self.logger.error(f"Validation error for {category}: {e}")
+            print(f"Error processing {category}: {e}")
         except Exception as e:
-            logger.error(
-                f"Unexpected error processing {file_path}: {e}",
-                exc_info=True
-            )
-    
-    def _scrape_trends(self, trends: List) -> List[ScrapedTrend]:
-        """
-        Scrape content for all trends.
-        
-        Args:
-            trends: List of Trend objects
-            
-        Returns:
-            List[ScrapedTrend]: List of successfully scraped trends
-        """
-        scraped_trends = []
-        
-        for trend in trends:
-            scraped_trend = self._scrape_trend_urls(trend)
-            if scraped_trend:
-                scraped_trends.append(scraped_trend)
-        
-        return scraped_trends
-    
-    def _scrape_trend_urls(self, trend) -> Optional[ScrapedTrend]:
-        """
-        Attempt to scrape content from trend URLs.
-        Tries each URL until one succeeds.
-        
-        Args:
-            trend: Trend object containing URLs
-            
-        Returns:
-            Optional[ScrapedTrend]: First successful scrape or None
-        """
-        for link in trend.links:
-            scraped_trend = self._scrape_single_url(trend, link)
-            if scraped_trend:
-                return scraped_trend
-        
-        logger.warning(
-            f"Failed to scrape any URL for topic: {trend.topic}"
-        )
-        return None
-    
-    def _scrape_single_url(self, trend, link: str):
-        """
-        Scrape and clean content for a single URL.
-        
-        Args:
-            trend: Trend object
-            link: URL to scrape
-            
-        Returns:
-            Optional[ScrapedTrend]: Scraped trend or None
-        """
-        logger.info(f"Scraping: {link}")
-        
-        html_content = self.scraper.scrape(link)
-        if not html_content:
-            logger.error(f"Failed to scrape {link}")
-            return None
-        
-        cleaned_content = self.cleaner.clean(html_content)
-        if not cleaned_content:
-            logger.error(f"Failed to clean content from {link}")
-            return None
-        
-        return ScrapedTrend(
-            topic=trend.topic,
-            link=link,
-            content=cleaned_content,
-            search_keywords=trend.search_keywords
-        )
+            self.logger.error(f"Unexpected error for {category}: {e}")
+            print(f"Error processing {category}: {e}")

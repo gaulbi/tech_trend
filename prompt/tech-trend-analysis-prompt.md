@@ -39,50 +39,52 @@ You will receive a JSON object in **{{context}}** containing:
 
 ## Search Keywords Rules (Optimized for Web Scraper APIs)
 
-`search_keywords` must be a **comma-separated string** of **5–6 short, efficient keywords**.
+The LLM must generate an array of 2-3 specific search phrases, each optimized as a standalone "AND" condition query for non-event-specific technical research.
 
-To ensure reliable results when used with web-scraping APIs (ScraperAPI, ScrapingBee, ZenRows), the keywords must follow these rules:
+### Query Structure Constraints
+1. **Length**: Each query string must be 2–4 words.
+3. **No Connectors**: Do not use "AND," "OR," "NOT," or quotes.
 
-### Structure
-- 5–6 keywords total
-- Each keyword must be 1–3 words only
-- No long phrases, no sentences, no technical jargon unless widely recognized
-- Use atomic entities, not descriptive phrases
+### Content Strategy (The "Three-Tier" Approach)
+You must attempt to generate one keyword for each of the following tiers:
+1. **The Specific Entity/Technology**:
+ - Include the specific name of the product, model, or protocol if it is a major release or incident.
+ - _Example_: "DeepSeek LLM release" or "Falcon 180B architecture".
+2. **The Technical Classification**:
+- Describe the underlying technology, standard, or category without using the specific brand name.
+- _Example_: "open-source frontier models" or "zero-knowledge proof rollup".
+3. **The Theoretical or Market Phenomenon**:
+- Identify the broader technical concept, market dynamic, or "diffusion" effect mentioned in the text.
+- **Example**: "AI capability diffusion" or "LLM inference economics".
 
-### Allowed keyword types
-- product names
-- model numbers
-- company names
-- event names
-- short nouns describing the issue
-- short verbs (rarely, only if essential)
-
-### Not allowed
-- long 4–8 word phrases
-- descriptive sentences
-- uncommon technical jargon
-- keywords longer than 3 words
-- quoted phrases
+### Goal of the Array
+The goal is to provide a mix of **specific news tracking** (Tier 1) and **deep technical background** (Tiers 2 & 3).
 
 ---
 
 # Output Format:
 Return a **raw JSON array** (no markdown formatting, no code blocks) containing exactly **1** trend object following this schema:
+```json
 [
-  {
-    "topic": "Specific topic name",
-    "reason": "1–2 sentences explaining why this event is significant and timely.",
-    "category": "focused_domain_category",
-    "links": ["..."],
-    "search_keywords": "keyword1, keyword2, keyword3, keyword4, keyword5"
-  }
+  { 
+    "topic": "Specific topic name", 
+    "reason": "1–2 sentences explaining why this event is significant and timely.", 
+    "category": "focused_domain_category", 
+    "links": ["..."], 
+    "search_keywords": [ 
+      "specific_tech_name context", 
+      "technical_concept classification", 
+      "broader_phenomenon term" 
+    ]
+  } 
 ]
+```
 
 # Requirements:
 - MUST return exactly 1 trend.
 - MUST use only URLs from the provided articles.
 - MUST ensure "links" reflects **all input articles in the selected cluster**.
-- `search_keywords` must include **5–6 short, scraper-efficient** terms.
+- `search_keywords` must follow the Three-Tier strategy defined above.
 
 --- CONTEXT START ---
 {{context}}

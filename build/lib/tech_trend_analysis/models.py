@@ -64,7 +64,7 @@ class Trend:
     reason: str
     category: str
     links: List[str]
-    search_keywords: str
+    search_keywords: List[str]
 
 
 @dataclass

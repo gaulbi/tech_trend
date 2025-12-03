@@ -87,36 +87,47 @@ class TrendProcessor:
         )
 
     def _parse_llm_response(self, response: str) -> List[Trend]:
-        """Parse LLM response into Trend objects.
+        """Parse LLM response into Trend objects and validate search_keywords structure.
         
         Args:
             response: Raw LLM response text
-            
+        
         Returns:
             List of Trend objects
-            
+        
         Raises:
             ValidationError: If response format is invalid
         """
         cleaned_response = self._clean_json_response(response)
-        
         try:
             data = json.loads(cleaned_response)
-            
             if not isinstance(data, list):
                 raise ValidationError("Expected JSON array")
-            
             trends = []
             for item in data:
+                # Validate search_keywords
+                keywords = item["search_keywords"]
+                if not isinstance(keywords, list):
+                    raise ValidationError("search_keywords must be a list of strings")
+                if not (2 <= len(keywords) <= 3):
+                    self.logger.warning(f"search_keywords count invalid: {keywords}")
+                valid_keywords = []
+                for q in keywords:
+                    terms = q.split()
+                    if not (3 <= len(terms) <= 4):
+                        self.logger.warning(f"Query term count invalid: {q}")
+                    # Check for forbidden connectors/quotes
+                    if any(conn in q for conn in ["AND", "OR", "NOT", '"']):
+                        self.logger.warning(f"Forbidden connector/quote in query: {q}")
+                    valid_keywords.append(q)
                 trend = Trend(
                     topic=item["topic"],
                     reason=item["reason"],
                     category=item["category"],
                     links=item["links"],
-                    search_keywords=item["search_keywords"]
+                    search_keywords=valid_keywords
                 )
                 trends.append(trend)
-            
             return trends
         except (json.JSONDecodeError, KeyError, TypeError) as e:
             raise ValidationError(
