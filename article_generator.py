@@ -185,15 +185,17 @@ class ArticleGenerator:
                 )
                 return False
         
-        # Validate search_keywords if present (should be string)
+        # Validate search_keywords if present (should be list of strings)
         if "search_keywords" in trend:
             keywords = trend["search_keywords"]
-            if not isinstance(keywords, str):
-                self.logger.warning(
-                    f"Trend field 'search_keywords' must be a string, got {type(keywords).__name__}",
-                    extra={"trend": str(trend), "field_value": str(keywords)}
-                )
-                return False
+            if not (isinstance(keywords, list) and all(isinstance(kw, str) for kw in keywords)):
+                # Allow string for backward compatibility
+                if not isinstance(keywords, str):
+                    self.logger.warning(
+                        f"Trend field 'search_keywords' must be a list of strings or a string, got {type(keywords).__name__}",
+                        extra={"trend": str(trend), "field_value": str(keywords)}
+                    )
+                    return False
         
         return True
     
@@ -265,9 +267,15 @@ class ArticleGenerator:
         
         try:
             # Retrieve context using RAG
-            query_text = f"{topic}: {trend['reason']}"
+            search_keywords_list = trend.get("search_keywords", [])
+            if not isinstance(search_keywords_list, list):
+                # Fallback: if it's a string, wrap in list
+                if isinstance(search_keywords_list, str):
+                    search_keywords_list = [search_keywords_list]
+                else:
+                    search_keywords_list = []
             context = self.rag_engine.retrieve_context(
-                query_text=query_text,
+                query_text=", ".join(search_keywords_list),
                 category=category,
                 embedding_date=self.today_date,
                 top_k=self.config.embedding.ktop
@@ -277,26 +285,14 @@ class ArticleGenerator:
             if not context or not context.strip():
                 self.logger.warning(
                     f"No context retrieved from RAG for trend: {topic}",
-                    extra={"category": category, "query": query_text}
+                    extra={"category": category, "query_text": ", ".join(search_keywords_list)}
                 )
                 # Continue anyway but log the issue
                 context = "No relevant context found in knowledge base."
             
             # Prepare prompt variables
-            # search_keywords is a comma-separated string
-            search_keywords_raw = trend.get("search_keywords", "")
-            
-            # Parse comma-separated keywords and clean whitespace
-            if search_keywords_raw:
-                keywords_list = [
-                    kw.strip() 
-                    for kw in search_keywords_raw.split(",")
-                    if kw.strip()
-                ]
-                search_keywords = ", ".join(keywords_list)
-            else:
-                search_keywords = ""
-            
+            search_keywords = str(search_keywords_list)
+
             variables = {
                 "context": context,
                 "search_keywords": search_keywords,

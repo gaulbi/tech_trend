@@ -73,7 +73,7 @@ embedding:
       "topic": "Agentic AI Patterns",
       "reason": "Rising popularity in enterprise automation...",
       "links": ["..."],
-      "search_keywords": "AI Agents, Automation"
+      "search_keywords": ["AI Agents, Automation"]
     }
   ]
 }
@@ -82,7 +82,7 @@ embedding:
 ### 2. RAG Strategy (ChromaDB)
 **Goal**: Find relevant chunks for a specific trend.
 
-**Query Vector**: Embed the string "{trend.topic}: {trend.reason}".
+**Query Vector**: Embed the string list from `{trend.search_keywords}`.
 
 **Filters (Where Clause)**:
 - `category`: Must match the input file's category.
@@ -106,7 +106,7 @@ embedding:
 
 **Injection Keys**:
 - `{{context}}`: The aggregated text from ChromaDB chunks.
-- `{{search_keywords}}`: Comma-separated string from `{trend.search_keywords}`.
+- `{{search_keywords}}`: String list from `{trend.search_keywords}`.
 - `{{reason}}`: The text from `{trend.reason}`.
 
 ### 5. Output Management
