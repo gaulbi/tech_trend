@@ -1,13 +1,16 @@
-"""Custom exception classes for tech trend analysis."""
+# ============================================================================
+# FILE: src/tech_trend_analysis/exceptions.py
+# ============================================================================
+"""Custom exceptions for tech trend analysis."""
 
 
 class TechTrendAnalysisError(Exception):
-    """Base exception for all tech trend analysis errors."""
+    """Base exception for tech trend analysis errors."""
     pass
 
 
 class ConfigurationError(TechTrendAnalysisError):
-    """Raised when configuration is missing or invalid."""
+    """Raised when configuration is invalid or missing."""
     pass
 
 
@@ -17,10 +20,5 @@ class ValidationError(TechTrendAnalysisError):
 
 
 class LLMError(TechTrendAnalysisError):
-    """Raised when LLM API calls fail."""
-    pass
-
-
-class NetworkError(TechTrendAnalysisError):
-    """Raised when network operations fail."""
+    """Raised when LLM operations fail."""
     pass

@@ -1,90 +1,102 @@
-## Role Definition
-**Role**: You are an expert technology analyst who identifies specific, news-driven technology trends by analyzing a set of articles.
+# Tech Term & Trend Extraction Prompt
 
-**Goal**: Write a single, focused article topic for today by identifying the most significant and widely discussed specific event from the provided news feed.
+**Role**:
+You are an expert technology analyst specializing in software engineering, systems design, AI infrastructure, developer tools, computer architecture, security, and open-source technologies.
 
-You will receive a JSON object in **{{context}}** containing:
+**Goal**:
+From a list of RSS titles, extract **specific, concrete, educational technical terms** suitable for **Wikipedia or web search**. Ignore news that is not technical.
 
+---
+
+## Context:
+You will receive a JSON object in **CONTEXT** containing:
 - category (string)
 - fetch_date (string)
 - article_count (number)
 - articles (array of objects with `title`, `link`)
 
-## Important Guidelines:
-1. **Avoid broad or evergreen categories** (e.g., "AI", "Cloud", "Cybersecurity").
-2. **Focus on specific events**, such as:
-   - product releases
-   - major outages or incidents
-   - new open-source projects
-   - newly-discovered security vulnerabilities
-   - major acquisitions, regulations, or policy updates
-3. **Cluster internally**: If multiple articles refer to the same event, treat them as one cluster.
-4. **Pick one**: Select the single most timely, impactful, and widely referenced cluster/event.
+---
+
+## Rules:
+
+1. Extract ONLY technical concepts that are:
+
+    - Specific technologies, libraries, standards, protocols, formats, algorithms, architectures, runtimes, hardware components, or engineering practices.
+    - Canonical and **likely to match a Wikipedia article title or redirect**.
+    - Search-friendly, explainable, and narrow enough to produce a meaningful technical article.
+    - Emerging or under-explained (avoid overly generic ones like “AI”, “LLM”, “NVIDIA” unless tied to a mechanism).
+
+    **Important:** Do not invent phrases. If a title mentions a library, product, or project, translate it into the **underlying technical concept** that has a Wikipedia page.  
+
+2. Ignore / exclude entirely:
+
+    - Sales, deals, discounts, promotions
+    - Hiring posts, competitions, awards
+    - Economic analysis or news
+    - Medical/biological topics unless a technical mechanism is mentioned
+    - Generic AI headlines
+    - Consumer product shopping lists
+    - Human-interest content, psychology, or social commentary
+    - Anything impossible to derive a concrete technical term from
+
+3. For AI/ML titles:
+
+    - Extract the **underlying technical mechanism**.
+    - Convert domain-specific phrasing to canonical Wikipedia terms:
+        - phoneme-level speech classification → “speech recognition”, “phoneme classification”, “audio feature extraction”
+        - real-time audio pattern recognition → “audio signal processing”, “acoustic modeling”
+        - model fine-tuning → “transfer learning”
+        - embeddings → “feature embedding”, “spectrogram features”
+
+4. For vague/high-level titles:
+
+    - Infer the most plausible technical term that is **likely to exist on Wikipedia**.
+    - Avoid abstract marketing phrases or project names; translate to canonical concepts.
 
 ---
 
-## Category Rule (Important)
+## Output:
 
-- The value of "category" in the output **must exactly match** the `category` field from the input context.
-- Do **not** invent or modify categories.
+Provide 3–6 Technical Trend Candidates in output.
 
----
+### Output Format:
 
-## Link Rules
-- `"links"` field must contain **only** the links from the selected cluster.
-- Do NOT create, modify, or infer links.
-- If two or more articles describe the same event, include **all** their links in "links".
-
----
-
-## Search Keywords Rules (Optimized for Web Scraper APIs)
-
-The LLM must generate an array of 2-3 specific search phrases, each optimized as a standalone "AND" condition query for non-event-specific technical research.
-
-### Query Structure Constraints
-1. **Length**: Each query string must be 2–4 words.
-3. **No Connectors**: Do not use "AND," "OR," "NOT," or quotes.
-
-### Content Strategy (The "Three-Tier" Approach)
-You must attempt to generate one keyword for each of the following tiers:
-1. **The Specific Entity/Technology**:
- - Include the specific name of the product, model, or protocol if it is a major release or incident.
- - _Example_: "DeepSeek LLM release" or "Falcon 180B architecture".
-2. **The Technical Classification**:
-- Describe the underlying technology, standard, or category without using the specific brand name.
-- _Example_: "open-source frontier models" or "zero-knowledge proof rollup".
-3. **The Theoretical or Market Phenomenon**:
-- Identify the broader technical concept, market dynamic, or "diffusion" effect mentioned in the text.
-- **Example**: "AI capability diffusion" or "LLM inference economics".
-
-### Goal of the Array
-The goal is to provide a mix of **specific news tracking** (Tier 1) and **deep technical background** (Tiers 2 & 3).
-
----
-
-# Output Format:
-Return a **raw JSON array** (no markdown formatting, no code blocks) containing exactly **1** trend object following this schema:
 ```json
-[
-  { 
-    "topic": "Specific topic name", 
-    "reason": "1–2 sentences explaining why this event is significant and timely.", 
-    "category": "focused_domain_category", 
-    "links": ["..."], 
-    "search_keywords": [ 
-      "specific_tech_name context", 
-      "technical_concept classification", 
-      "broader_phenomenon term" 
-    ]
-  } 
-]
+{
+  "analysis_date": "2025-12-01",
+  "category": "software_engineering",
+  "trends": [
+    {
+      "topic": "Binary Serialization Formats (MessagePack / CBOR / Amazon Ion)",
+      "reason": "The title “Better Than JSON” implies alternatives to JSON that improve efficiency and type fidelity.",
+      "links": [
+        "https://www.infoq.com/news/2025/11/aws-opentelemetry/?utm_campaign=infoq_content&utm_source=infoq&utm_medium=feed&utm_term=global"
+      ],
+      "search_keywords": ["MessagePack, CBOR, Amazon Ion, Binary serialization"]
+    }
+  ]
+}
 ```
 
-# Requirements:
-- MUST return exactly 1 trend.
-- MUST use only URLs from the provided articles.
-- MUST ensure "links" reflects **all input articles in the selected cluster**.
-- `search_keywords` must follow the Three-Tier strategy defined above.
+### Fields in Trend Item
+
+- **`topic`** specific technical concept, Wikipedia-title-friendly
+- **`category`** short explanation
+- **`search_keywords`** 
+    - 2–4 canonical Wikipedia terms or redirects, preferably exact page titles
+    - specific, technical, not generic
+    - canonical and Wikipedia-searchable
+    - realistic topics for a technical explainer article
+- **`links`**
+    - field must contain **only** the links from the selected cluster.
+    - Do NOT create, modify, or infer links.
+    - If two or more articles describe the same event, include **all** their links in "links".
+
+### Term Example in `search_keywords`:
+- “Better Than JSON” → Term: Binary serialization formats  
+  Search Keywords: MessagePack, CBOR, Amazon Ion  
+- “AI model trained on prison calls” → Term: Audio embedding models for surveillance  
+  Search Keywords: Audio signal processing, Phoneme classification, Feature embedding
 
 --- CONTEXT START ---
 {{context}}

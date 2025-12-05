@@ -1,183 +1,296 @@
-# Tech Trend Analysis
+# Tech Trend Analysis - Setup Instructions
 
-A Python module that analyzes RSS feeds and generates daily technology trend reports using various LLM providers.
+## 🔧 Critical Fixes Applied
 
-## Features
+The following critical errors have been fixed:
 
-- **Multi-LLM Support**: OpenAI, DeepSeek, Claude (Anthropic), and Ollama (local)
-- **Idempotent Processing**: Skip already-analyzed categories
-- **Robust Error Handling**: Retry with exponential backoff, graceful degradation
-- **Structured Logging**: JSON-formatted logs for easy parsing
-- **Type-Safe**: Full type hints throughout the codebase
+1. ✅ **Module Import Error**: Added proper error handling and path resolution
+2. ✅ **Missing Dependencies**: Added early detection with helpful error messages
+3. ✅ **Path Assumptions**: Changed to use script-relative paths instead of CWD
+4. ✅ **JSON Extraction Bug**: Fixed code block parsing logic
+5. ✅ **Prompt Template Validation**: Added validation for {articles} placeholder
+6. ✅ **Empty Articles Handling**: Skip analysis instead of creating empty files
+7. ✅ **Better Error Messages**: All LLM errors now include installation instructions
 
-## Installation
+---
 
-1. **Install dependencies**:
+## 📁 Manual Setup (Required)
+
+Since the code is provided as a combined artifact, you need to split it into separate files:
+
+### Step 1: Create Directory Structure
+
 ```bash
-pip install -r requirements.txt
+mkdir -p src/tech_trend_analysis
+mkdir -p data/rss/rss-feed
+mkdir -p data/tech-trend-analysis
+mkdir -p prompt
+mkdir -p log
 ```
 
-2. **Create `.env` file** with your API keys:
-```bash
-# OpenAI API Key
-OPENAI_API_KEY=sk-...
+### Step 2: Extract Module Files
 
-# DeepSeek API Key
-DEEPSEEK_API_KEY=sk-...
-
-# Claude (Anthropic) API Key
-CLAUDE_API_KEY=sk-ant-...
-
-# Ollama does not require an API key
-```
-
-3. **Ensure `config.yaml` exists** in the project root (see Configuration section)
-
-## Project Structure
+From the artifact "Complete Tech Trend Analysis Package", create these files:
 
 ```
-.
-├── tech-trend-analysis.py              # Main entry point
-├── src/
-│   └── tech_trend_analysis/            # Package
-│       ├── __init__.py
-│       ├── main.py                     # Main orchestration
-│       ├── config.py                   # Configuration management
-│       ├── models.py                   # Data models
-│       ├── processor.py                # RSS processing logic
-│       ├── logger.py                   # JSON logging
-│       ├── exceptions.py               # Custom exceptions
-│       └── llm/                        # LLM providers
-│           ├── __init__.py
-│           ├── base.py                 # Abstract base class
-│           ├── factory.py              # Factory pattern
-│           ├── openai_client.py
-│           ├── deepseek_client.py
-│           ├── claude_client.py
-│           └── ollama_client.py
-├── data/
-│   ├── rss/
-│   │   └── rss-feed/
-│   │       └── {YYYY-MM-DD}/           # Daily RSS feeds
-│   └── tech-trend-analysis/            # Analysis output
-│       └── {YYYY-MM-DD}/
-├── prompt/
-│   └── tech-trend-analysis-prompt.md   # LLM prompt template
-├── log/
-│   └── tech-trend-analysis/            # JSON log directory
-├── .env                                # API keys (gitignored)
-├── config.yaml                         # Configuration
-└── requirements.txt
+src/tech_trend_analysis/__init__.py
+src/tech_trend_analysis/exceptions.py
+src/tech_trend_analysis/logger.py
+src/tech_trend_analysis/config.py
+src/tech_trend_analysis/models.py
+src/tech_trend_analysis/llm_client.py
+src/tech_trend_analysis/processor.py
+src/tech_trend_analysis/main.py
 ```
 
-## Configuration
+**Each file starts with a header like:**
+```python
+# ============================================================================
+# FILE: src/tech_trend_analysis/exceptions.py
+# ============================================================================
+```
 
-The `config.yaml` file should contain:
+Copy the code between headers into the corresponding file.
 
+### Step 3: Create Configuration Files
+
+#### `config.yaml`
 ```yaml
 rss:
   rss-feed: data/rss/rss-feed
+
 tech-trend-analysis:
   prompt: prompt/tech-trend-analysis-prompt.md
   analysis-report: data/tech-trend-analysis
   log: log/tech-trend-analysis
+
 llm:
-  server: openai  # openai, deepseek, claude, or ollama
-  llm-model: gpt-4-turbo
+  server: openai  # Options: openai, deepseek, claude, ollama
+  llm-model: gpt-4
   timeout: 60
   retry: 3
 ```
 
-## Usage
+#### `.env`
+```bash
+# Choose the provider you're using and add the appropriate key
 
-Run the analysis:
+# OpenAI
+OPENAI_API_KEY=sk-your-actual-key-here
+
+# DeepSeek
+DEEPSEEK_API_KEY=sk-your-actual-key-here
+
+# Claude
+CLAUDE_API_KEY=sk-ant-your-actual-key-here
+
+# Ollama (no key needed, runs locally)
+```
+
+#### `prompt/tech-trend-analysis-prompt.md`
+```markdown
+Analyze the following technology articles and identify key trends.
+
+Articles:
+{{context}}
+
+Provide your analysis in JSON format:
+{
+  "trends": [
+    {
+      "topic": "Brief trend topic",
+      "reason": "Why this is trending",
+      "links": ["relevant article URLs"],
+      "search_keywords": ["keywords for further research"]
+    }
+  ]
+}
+```
+
+### Step 4: Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### Step 5: Create Sample RSS Feed Data
+
+Create a file: `data/rss/rss-feed/2024-12-04/software_engineering.json`
+
+```json
+{
+  "category": "software_engineering",
+  "fetch_date": "2024-12-04",
+  "article_count": 2,
+  "articles": [
+    {
+      "title": "The Rise of Rust in System Programming",
+      "link": "https://example.com/rust-systems"
+    },
+    {
+      "title": "WebAssembly: The Future of Web Development",
+      "link": "https://example.com/wasm-future"
+    }
+  ]
+}
+```
+
+---
+
+## 🚀 Running the Application
 
 ```bash
 python tech-trend-analysis.py
 ```
 
-The script will:
-1. Automatically detect today's date
-2. Scan for RSS feed files in `data/rss/rss-feed/{TODAY_DATE}/`
-3. Skip already-analyzed categories (idempotent)
-4. Generate trend analysis for each category
-5. Save results to `data/tech-trend-analysis/{TODAY_DATE}/`
-6. Log all operations to `log/tech-trend-analysis/tech-trend-analysis-{TODAY_DATE}.log`
+---
 
-## Input Format
+## 🔍 Verification Tests
 
-RSS feed files should be in `data/rss/rss-feed/{YYYY-MM-DD}/{category}.json`:
-
-```json
-{
-  "category": "software_engineering",
-  "fetch_date": "2025-11-01",
-  "article_count": 2,
-  "articles": [
-    {
-      "title": "DIY NAS: 2026 Edition",
-      "link": "https://blog.example.com/..."
-    },
-    {
-      "title": "Penpot: The Open-Source Figma",
-      "link": "https://github.com/..."
-    }
-  ]
-}
+### Test 1: Module Import
+```bash
+python -c "from tech_trend_analysis.main import main; print('✓ Import successful')"
 ```
 
-## Output Format
-
-Analysis reports are saved to `data/tech-trend-analysis/{YYYY-MM-DD}/{category}.json`:
-
-```json
-{
-  "analysis_date": "2025-11-22",
-  "category": "software_engineering",
-  "trends": [
-    {
-      "topic": "...",
-      "reason": "...",
-      "links": ["..."],
-      "search_keywords": "..."
-    }
-  ]
-}
+### Test 2: Configuration Loading
+```bash
+python -c "from tech_trend_analysis.config import Config; from pathlib import Path; c = Config(Path('config.yaml')); print('✓ Config loaded')"
 ```
 
-## Error Handling
-
-- **Network Errors**: 3 retry attempts with exponential backoff (1s, 2s, 4s)
-- **Timeout**: 60 seconds per request
-- **Validation Errors**: Logged and skipped, processing continues
-- **Configuration Errors**: Fatal, exits immediately
-
-## Code Quality
-
-- Maximum function length: 50 lines
-- Type hints: Required for all functions
-- Docstrings: Google style
-- Line length: Max 100 characters
-- No hardcoded values
-
-## Logging
-
-All logs are in JSON format (one object per line) in:
-`log/tech-trend-analysis/tech-trend-analysis-{YYYY-MM-DD}.log`
-
-Example log entry:
-```json
-{
-  "timestamp": "2025-11-22T10:30:45.123456",
-  "level": "INFO",
-  "message": "Processing category: software_engineering",
-  "module": "main",
-  "function": "process_category",
-  "line": 123,
-  "category": "software_engineering"
-}
+### Test 3: Dependencies
+```bash
+python -c "import yaml, dotenv; print('✓ Core dependencies installed')"
 ```
 
-## License
+### Test 4: LLM Client (OpenAI example)
+```bash
+python -c "from tech_trend_analysis.llm_client import OpenAIClient; print('✓ LLM client can be imported')"
+```
 
-This project is provided as-is for technology trend analysis purposes.
+---
+
+## 🐛 Common Issues & Solutions
+
+### Issue: "ModuleNotFoundError: No module named 'tech_trend_analysis'"
+
+**Solution**: 
+- Ensure `src/tech_trend_analysis/` directory exists
+- Ensure all `.py` files are in that directory
+- Run from project root (where `tech-trend-analysis.py` is)
+
+### Issue: "ModuleNotFoundError: No module named 'yaml'"
+
+**Solution**: 
+```bash
+pip install pyyaml
+```
+
+### Issue: "ConfigurationError: Configuration file not found"
+
+**Solution**: 
+- Create `config.yaml` in project root
+- Ensure you're running from the correct directory
+
+### Issue: "OPENAI_API_KEY not found in environment"
+
+**Solution**: 
+- Create `.env` file in project root
+- Add your API key: `OPENAI_API_KEY=sk-...`
+
+### Issue: "No category files found for today"
+
+**Solution**: 
+- Create directory: `data/rss/rss-feed/YYYY-MM-DD/` (today's date)
+- Add at least one `.json` file with RSS feed data
+
+---
+
+## 📊 Project Structure After Setup
+
+```
+tech-trend-analysis/
+├── tech-trend-analysis.py          # Entry point
+├── setup_project.py                 # Helper setup script
+├── config.yaml                      # Configuration
+├── .env                             # API keys (gitignored)
+├── requirements.txt                 # Dependencies
+├── SETUP_INSTRUCTIONS.md           # This file
+│
+├── src/
+│   └── tech_trend_analysis/
+│       ├── __init__.py
+│       ├── main.py
+│       ├── processor.py
+│       ├── config.py
+│       ├── logger.py
+│       ├── llm_client.py
+│       ├── models.py
+│       └── exceptions.py
+│
+├── data/
+│   ├── rss/
+│   │   └── rss-feed/
+│   │       └── 2024-12-04/         # Today's date
+│   │           ├── software_engineering.json
+│   │           └── ai_ml.json
+│   └── tech-trend-analysis/
+│       └── 2024-12-04/              # Output directory
+│           ├── software_engineering.json
+│           └── ai_ml.json
+│
+├── prompt/
+│   └── tech-trend-analysis-prompt.md
+│
+└── log/
+    └── tech-trend-analysis/
+        └── tech-trend-analysis-2024-12-04.log
+```
+
+---
+
+## ✅ Success Indicators
+
+When properly set up, you should see:
+
+```
+======================================================================
+Starting Tech Trend Analysis for 2024-12-04
+======================================================================
+2024-12-04 10:30:15 - INFO - Found 2 categories to process
+2024-12-04 10:30:15 - INFO - Processing category: software_engineering
+2024-12-04 10:30:18 - INFO - Successfully analyzed software_engineering: 3 trends identified
+======================================================================
+Processing Summary:
+  Date: 2024-12-04
+  Total categories: 2
+  Successful: 2
+  Failed: 0
+  Skipped: 0
+======================================================================
+```
+
+---
+
+## 🔄 Idempotency Test
+
+Run the script twice:
+
+```bash
+python tech-trend-analysis.py
+python tech-trend-analysis.py  # Second run
+```
+
+Second run should show:
+```
+Skipping software_engineering: Analysis already exists
+```
+
+---
+
+## 📝 Notes
+
+- The application only processes today's date
+- Historical data is ignored
+- API keys must be in `.env` file (not in code)
+- Log files are rotated at 10MB with 5 backups
+- All output is in JSON format for easy parsing
