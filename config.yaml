@@ -36,3 +36,11 @@ embedding:
   database-path: data/embedding
   ktop: 20
   log: log/embedding
+article-publisher:
+  timeout: 60
+  retry: 3
+  log: log/article-publisher
+  api-header: X-Hashnode-Api-Key
+  server: https://gql.hashnode.com
+  publication-id: 69338c8f89000fd11cf3ce38
+  timezone: America/New_York

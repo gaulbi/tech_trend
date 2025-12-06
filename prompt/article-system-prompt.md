@@ -56,6 +56,8 @@ and concise explanations targeted to senior software engineers.}
 전문:
 {Full Korean article body, adapted professionally with bold Markdown emphasis on key terms}
 
+_[AI-generated, human-orchestrated by Jongkook Kim]_
+
 ---
 
 ## Rules
