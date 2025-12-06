@@ -1,21 +1,12 @@
-"""RSS Fetcher - Fetch and organize RSS feeds by category."""
+"""RSS Fetcher package."""
 
 __version__ = "1.0.0"
 
-from .main import main
-from .models import (
-    Config,
-    Article,
-    CategoryOutput,
-    ConfigurationError,
-    ValidationError
-)
+from .config import Config, ConfigurationError
+from .validator import ValidationError
 
 __all__ = [
-    "main",
-    "Config",
-    "Article",
-    "CategoryOutput",
-    "ConfigurationError",
-    "ValidationError",
+    'Config',
+    'ConfigurationError',
+    'ValidationError',
 ]

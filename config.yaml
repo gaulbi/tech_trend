@@ -1,5 +1,5 @@
 rss:
-  rss-list: rss/rss-list.json    # RSS sources
+  rss-source: rss/rss-list.json    # RSS sources
   rss-feed: data/rss/rss-feed          # Output directory
   log: log/rss-fetch                   # Log directory
   max-concurrent: 10                   # Max parallel requests

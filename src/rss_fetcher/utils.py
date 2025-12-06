@@ -2,67 +2,65 @@
 
 import re
 from pathlib import Path
-from datetime import datetime
 
 
-def sanitize_category_name(category: str) -> str:
-    """
-    Sanitize category name for use as filename.
-    
-    Converts to lowercase and replaces spaces and special characters
-    with underscores.
+def sanitize_category(category: str) -> str:
+    """Sanitize category name for use as filename.
     
     Args:
-        category: Original category name
+        category: Raw category name
         
     Returns:
-        Sanitized category name
+        Sanitized category name (lowercase, underscores)
         
-    Raises:
-        ValueError: If sanitized name is empty
-        
-    Example:
-        >>> sanitize_category_name("AI & Hardware!")
+    Examples:
+        >>> sanitize_category("AI & Hardware!")
         'ai_hardware'
+        >>> sanitize_category("Software Engineering")
+        'software_engineering'
     """
+    # Convert to lowercase
     sanitized = category.lower()
-    sanitized = re.sub(r'[^a-z0-9]+', '_', sanitized)
-    sanitized = sanitized.strip('_')
     
-    if not sanitized:
-        raise ValueError(f"Category name '{category}' produces empty filename")
+    # Replace spaces and special characters with underscores
+    sanitized = re.sub(r'[^a-z0-9]+', '_', sanitized)
+    
+    # Remove leading/trailing underscores
+    sanitized = sanitized.strip('_')
     
     return sanitized
 
 
-def is_today_file_exists(base_path: str, category: str) -> bool:
-    """
-    Check if category JSON file already exists for today.
+def get_output_path(
+    base_dir: str, 
+    feed_date: str, 
+    category: str
+) -> Path:
+    """Get output file path for a category.
     
     Args:
-        base_path: Base output directory path
-        category: Sanitized category name
+        base_dir: Base output directory
+        feed_date: Feed date in YYYY-MM-DD format
+        category: Category name (will be sanitized)
         
     Returns:
-        True if file exists, False otherwise
+        Path object for output file
+        
+    Examples:
+        >>> get_output_path("data/rss", "2025-02-26", "AI & Hardware")
+        PosixPath('data/rss/2025-02-26/ai_hardware.json')
     """
-    today = datetime.now().strftime("%Y-%m-%d")
-    file_path = Path(base_path) / today / f"{category}.json"
-    return file_path.exists()
+    sanitized = sanitize_category(category)
+    return Path(base_dir) / feed_date / f"{sanitized}.json"
 
 
-def get_output_path(base_path: str, category: str) -> Path:
-    """
-    Get output file path for a category.
+def ensure_directory(path: Path) -> None:
+    """Ensure directory exists, create if needed.
     
     Args:
-        base_path: Base output directory path
-        category: Sanitized category name
-        
-    Returns:
-        Complete Path object for output file
+        path: Path to file or directory (creates parent if file path)
     """
-    today = datetime.now().strftime("%Y-%m-%d")
-    dir_path = Path(base_path) / today
-    dir_path.mkdir(parents=True, exist_ok=True)
-    return dir_path / f"{category}.json"
+    # If path has a file extension, it's a file path - use parent
+    if path.suffix:
+        path = path.parent
+    path.mkdir(parents=True, exist_ok=True)
