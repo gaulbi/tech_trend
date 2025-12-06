@@ -56,7 +56,11 @@ and concise explanations targeted to senior software engineers.}
 전문:
 {Full Korean article body, adapted professionally with bold Markdown emphasis on key terms}
 
-_[AI-generated, human-orchestrated by Jongkook Kim]_
+---
+
+_LLM-generated article._  
+_Automation by Vibe Code._  
+_Engineered by Jongkook Kim. (gaulbi@gmail.com)_
 
 ---
 
