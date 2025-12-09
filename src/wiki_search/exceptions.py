@@ -3,11 +3,16 @@ Custom exceptions for wiki_search module.
 """
 
 
-class ConfigurationError(Exception):
-    """Raised when configuration is invalid or missing."""
+class WikiSearchError(Exception):
+    """Base exception for wiki_search module."""
     pass
 
 
-class ValidationError(Exception):
+class ConfigurationError(WikiSearchError):
+    """Raised when configuration is missing or invalid."""
+    pass
+
+
+class ValidationError(WikiSearchError):
     """Raised when input data validation fails."""
     pass

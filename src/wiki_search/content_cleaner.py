@@ -1,54 +1,73 @@
 """
-Content cleaning utilities for wiki_search module.
+Content cleaning utilities for Wikipedia text.
 """
 
 import re
 
 
-def clean_wikipedia_content(content: str) -> str:
-    """
-    Clean Wikipedia page content by removing citations and unwanted sections.
-    
-    Args:
-        content: Raw Wikipedia content
-        
-    Returns:
-        Cleaned content string
-    """
-    # Remove citation markers like [1], [23], [citation needed]
-    content = re.sub(r'\[\d+\]', '', content)
-    content = re.sub(r'\[citation needed\]', '', content, flags=re.IGNORECASE)
-    
-    # Remove common Wikipedia sections and everything after
-    content = _remove_wikipedia_sections(content)
-    
-    # Normalize whitespace
-    content = re.sub(r'\s+', ' ', content)
-    content = content.strip()
-    
-    return content
+class ContentCleaner:
+    """Cleans Wikipedia content by removing citations and references."""
 
-
-def _remove_wikipedia_sections(content: str) -> str:
-    """
-    Remove common Wikipedia sections like References, External links, etc.
+    # Patterns for content cleaning
+    CITATION_PATTERN = re.compile(r'\[\d+\]|\[citation needed\]')
     
-    Args:
-        content: Content to clean
-        
-    Returns:
-        Content with sections removed
-    """
-    section_patterns = [
-        r'==\s*References\s*==.*',
-        r'==\s*External links\s*==.*',
-        r'==\s*See also\s*==.*',
-        r'==\s*Notes\s*==.*',
-        r'==\s*Further reading\s*==.*',
-        r'==\s*Bibliography\s*==.*',
+    # More flexible reference section patterns
+    REFERENCE_SECTION_PATTERN = re.compile(
+        r'==\s*References?\s*==.*',
+        re.IGNORECASE | re.DOTALL
+    )
+    
+    # Additional section patterns with flexible spacing
+    SECTION_PATTERNS = [
+        re.compile(r'==\s*See also\s*==.*', re.IGNORECASE | re.DOTALL),
+        re.compile(r'==\s*External links?\s*==.*', re.IGNORECASE | re.DOTALL),
+        re.compile(r'==\s*Further reading\s*==.*', re.IGNORECASE | re.DOTALL),
+        re.compile(r'==\s*Notes?\s*==.*', re.IGNORECASE | re.DOTALL),
+        re.compile(r'==\s*Bibliography\s*==.*', re.IGNORECASE | re.DOTALL),
+        re.compile(r'==\s*Sources?\s*==.*', re.IGNORECASE | re.DOTALL),
     ]
-    
-    for pattern in section_patterns:
-        content = re.sub(pattern, '', content, flags=re.DOTALL | re.IGNORECASE)
-    
-    return content
+
+    @classmethod
+    def clean(cls, content: str) -> str:
+        """
+        Clean Wikipedia content.
+
+        Removes:
+        - Citation markers ([1], [23], [citation needed])
+        - Reference sections and everything after
+        - Other metadata sections (See also, External links, etc.)
+        - Excessive whitespace while preserving paragraph breaks
+
+        Args:
+            content: Raw Wikipedia content
+
+        Returns:
+            Cleaned content string
+        """
+        if not content:
+            return ""
+
+        # Remove citation markers
+        cleaned = cls.CITATION_PATTERN.sub('', content)
+
+        # Remove reference section and everything after
+        cleaned = cls.REFERENCE_SECTION_PATTERN.sub('', cleaned)
+
+        # Remove other metadata sections
+        for pattern in cls.SECTION_PATTERNS:
+            cleaned = pattern.sub('', cleaned)
+
+        # Normalize excessive whitespace while preserving paragraphs
+        # Replace 3+ newlines with 2 newlines (paragraph break)
+        cleaned = re.sub(r'\n{3,}', '\n\n', cleaned)
+        
+        # Replace multiple spaces with single space
+        cleaned = re.sub(r' {2,}', ' ', cleaned)
+        
+        # Clean up spacing around newlines
+        cleaned = re.sub(r' *\n *', '\n', cleaned)
+
+        # Clean up spacing around punctuation
+        cleaned = cleaned.strip()
+
+        return cleaned

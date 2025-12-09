@@ -10,7 +10,10 @@
 
 **Purpose**: Search keywords against Wikipedia, extract/clean content, and store cleaned content.  
 The module must be production-ready with comprehensive error handling, retry logic, and logging.
-**Behavior**: Single-run batch processor for **today's date only** with idempotent behavior (skip categories that already have output files).
+
+### Feed Date
+- If no date is specified in command, the feed date is today's date.
+- Determine today's date using `datetime.date.today().strftime('%Y-%m-%d')`
 
 ---
 
@@ -33,23 +36,22 @@ scrape:
 ## Input: Tech Trend Analysis
 
 ### File Path
-`{tech-trend-analysis.analysis-report}/{TODAY_DATE}/{category}.json`
-
-**TODAY_DATE**: Automatically determined using `datetime.date.today().strftime('%Y-%m-%d')`
+`{tech-trend-analysis.analysis-report}/{FEED_DATE}/{category}.json`
 
 ### Example
-If today is 2025-11-26:
+If a feed date is _2025-11-26_ and a category is software_engineering,
 `data/tech-trend-analysis/2025-11-26/software_engineering.json`
 
 ### Format
 ```json
 {
-  "analysis_date": "2025-11-26",
+  "feed_date": "2025-11-26",
   "category": "software_engineering",
   "trends": [
     {
       "topic": "...",
       "reason": "...",
+      "score": 10,
       "links": ["..."],
       "search_keywords": [
         "frontier‑class AI models", 
@@ -59,31 +61,29 @@ If today is 2025-11-26:
 }
 ```
 
-**Validation**: 
-- Invalid JSON → Raise ValidationError and continue with remaining categories.
-- No files for today's date → Log WARNING and exit gracefully.
+**Validation**: Invalid JSON → Raise `ValidationError` and continue processing remaining categories.
 
 ---
 
 ## Output
 
 ### File Path
-`{scrape.url-scraped-content}/{TODAY_DATE}/{category}/wiki-search.json`
+`{scrape.url-scraped-content}/{FEED_DATE}/{category}/wiki-search.json`
 
 ### Example
-If today is 2025-11-26:
+If a feed date is _2025-11-26_ and a category is software_engineering, 
 `data/scraped-content/2025-11-26/software_engineering/wiki-search.json`
 
 ### JSON Structure
 ```json
 {
-  "analysis_date": "2025-11-26",
+  "feed_date": "2025-11-26",
   "category": "software_engineering",
   "trends": [
     {
       "topic": "...",
-      "query_used": "...",          // The exact query string used for this result
-      "link": "...",
+      "query_used": "...",
+      "search_link": "...",
       "content": "...",
     }
   ]
@@ -92,12 +92,12 @@ If today is 2025-11-26:
 **Note**: 
 - One input trend may result in multiple output trend objects
 - Every Wikipedia page scraped should appear separately in `trends`.
+- `search_link`: Wiki page link
+- `query_used`: The actual query sent to Wikipedia
 
 ## Date Processing Logic
-- **Automatic Date Detection**: Module automatically determines today's date at runtime
-- **Input Directory**: Only scan `{tech-trend-analysis.analysis-report}/{TODAY_DATE}/` for category JSON files
-- **Output Directory**: Write all results to `{scrape.url-scraped-content}/{TODAY_DATE}/{category}/`
-- **No Historical Processing**: Ignore all data from previous dates
+- **Input Directory**: Only scan `{tech-trend-analysis.analysis-report}/{FEED_DATE}/` for category JSON files
+- **Output Directory**: Write all results to `{scrape.url-scraped-content}/{FEED_DATE}/{category}/`
 
 ---
 
@@ -119,6 +119,9 @@ For each category → each trend → each keyword:
 
 ## Error Handling
 
+### 0 Results Wiki Search
+- **Action**: Log WARN, continue
+
 ### Network Errors
 - **Timeout**: use the default timeout(15s) of wikipedia API
 - **Retry**: 3 attempts with exponential backoff (1s, 2s, 4s)
@@ -127,37 +130,55 @@ For each category → each trend → each keyword:
 ### File/Parsing Errors
 - Missing config.yaml → Raise ConfigurationError
 - Malformed JSON → Raise ValidationError, continue
-- No input files for today → Log WARNING, exit with code 0
+- No input files for feed date/category → Log WARNING, exit with code 0
+
+### Partial Failure
+- If processing 3 keywords and 2 succeed but 1 fails, use successful search results.
 
 ---
 
 ## Logging
 
 ### Format: JSON (one object per line)
-**File**: `{scrape.log}/wiki-search-{TODAY_DATE}.log`
+**File**: `{scrape.log}/wiki-search-{FEED_DATE}.log`
 ---
 
 ## Project Structure
 ```
 .
-├── wiki_search.py              # Main entry point
+├── wiki-search.py              # Main entry point
 ├── src/
 │   └── wiki_search/            # Package
 ├── data/
 │   ├── tech-trend-analysis/
-│   │   └── {TODAY_DATE}/      # Only process this directory
+│   │   └── {FEED_DATE}/      # Only process this directory
 │   └── scraped-content/
-│       └── {TODAY_DATE}/      # Only write to this directory
+│       └── {FEED_DATE}/      # Only write to this directory
 ├── .env                        # API keys (gitignored)
 ├── config.yaml                 # Configuration file
 ```
+
+- DO NOT implement any logic in `wiki-search.py`. It's only for entry point.
+
+### Entry Point
+```bash
+python wiki-search.py
+
+python wiki-search.py --category "software_engineering"
+
+python wiki-search.py --feed_date "2025-02-01"
+
+python wiki-search.py --category "software_engineering" --feed_date "2025-02-01"
+```
+**category** and **feed_date** are optional input parameters.
+
 ---
 
 ## Idempotency
-Before scraping each category:
+Before searching each category:
 - Check if the output file exists at:
-`{scrape.url-scraped-content}/{TODAY_DATE}/{category}/wiki-search.json`
-- If exists → Log INFO, print "Skipping {category} (already processed for {TODAY_DATE})", do not search again.
+`{scrape.url-scraped-content}/{FEED_DATE}/{category}/wiki-search.json`
+- If exists → Log INFO, print "Skipping {category} (already processed for {FEED_DATE})", do not search again.
 
 ---
 
@@ -174,11 +195,11 @@ Before scraping each category:
 ## Success Criteria
 
 - Automatically processes only today's date without manual date input
-- Searching, cleaning, and storing wiki content successfully for today's categories
+- Searching, cleaning, and storing wiki content successfully for the given feed date's categories
 - Invalid search response don't stop execution
 - Idempotent: Running twice on same day produces same results
 - All code has type hints and docstrings
-- Graceful handling when no input data exists for today
+- Graceful handling when no input data exists for the given feed date
 
 ---
 

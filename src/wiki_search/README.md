@@ -1,15 +1,17 @@
 # Wikipedia Search Module
 
-A production-grade Python module for searching Wikipedia based on tech trend keywords, extracting and cleaning content, and storing results.
+A production-grade Python module for searching Wikipedia, extracting content, and storing cleaned results for tech trend analysis.
 
 ## Features
 
-- ✅ **Automatic Date Processing**: Processes only today's date automatically
-- ✅ **Idempotent**: Safe to run multiple times - skips already processed categories
-- ✅ **Robust Error Handling**: Retry logic with exponential backoff
-- ✅ **Comprehensive Logging**: JSON-formatted logs with timestamps
-- ✅ **Content Cleaning**: Removes citations, references, and unwanted sections
-- ✅ **Production-Ready**: Type hints, docstrings, and clean architecture
+- **Automated Wikipedia Search**: Searches keywords from tech trend analysis
+- **Content Cleaning**: Removes citations, references, and excessive whitespace
+- **Robust Error Handling**: Retry logic with exponential backoff for network failures
+- **Idempotent Processing**: Safely rerun without duplicating work
+- **Comprehensive Logging**: JSON-formatted logs for production monitoring
+- **Type-Safe**: Full type hints throughout codebase
+- **Progress Tracking**: Real-time progress indication for long-running jobs
+- **Validation**: Input validation for dates, configuration, and data structure
 
 ## Installation
 
@@ -19,138 +21,264 @@ pip install -r requirements.txt
 
 ## Configuration
 
-Create a `config.yaml` file in the project root:
+Create `config.yaml` in the project root:
 
 ```yaml
 tech-trend-analysis:
   analysis-report: data/tech-trend-analysis
-
 scrape:
   url-scraped-content: data/scraped-content
-  timeout: 60
   log: log/scraped-content
   max-search-results: 5
 ```
 
+### Configuration Validation
+
+The module validates:
+- All required fields are present
+- `max-search-results` is a positive integer
+- Config file is valid YAML
+
 ## Usage
 
+### Process all categories for today's date
 ```bash
-python wiki_search.py
+python wiki-search.py
 ```
 
-The module will:
-1. Automatically detect today's date
-2. Look for category files in `data/tech-trend-analysis/{TODAY}/`
-3. Search Wikipedia for each keyword
-4. Clean and save results to `data/scraped-content/{TODAY}/{category}/wiki-search.json`
-5. Skip categories that have already been processed
+### Process specific category
+```bash
+python wiki-search.py --category "software_engineering"
+```
+
+### Process specific date
+```bash
+python wiki-search.py --feed_date "2025-02-01"
+```
+
+### Process specific category and date
+```bash
+python wiki-search.py --category "software_engineering" --feed_date "2025-02-01"
+```
 
 ## Input Format
 
-Input files: `data/tech-trend-analysis/{YYYY-MM-DD}/{category}.json`
+Expected input file structure:
+```
+data/tech-trend-analysis/{FEED_DATE}/{category}.json
+```
 
+Example input:
 ```json
 {
-  "analysis_date": "2025-11-26",
+  "feed_date": "2025-11-26",
   "category": "software_engineering",
   "trends": [
     {
       "topic": "AI Development",
-      "reason": "Growing importance",
+      "reason": "...",
+      "score": 10,
       "links": ["..."],
-      "search_keywords": [
-        "frontier-class AI models",
-        "AI capability diffusion"
-      ]
+      "search_keywords": ["frontier-class AI models", "AI capability diffusion"]
     }
   ]
 }
 ```
 
+**Validation**: The module validates:
+- JSON structure is valid
+- All required fields are present
+- `feed_date` format is YYYY-MM-DD
+- `feed_date` and `category` match file location
+
 ## Output Format
 
-Output files: `data/scraped-content/{YYYY-MM-DD}/{category}/wiki-search.json`
+Generated output file structure:
+```
+data/scraped-content/{FEED_DATE}/{category}/wiki-search.json
+```
 
+Example output:
 ```json
 {
-  "analysis_date": "2025-11-26",
+  "feed_date": "2025-11-26",
   "category": "software_engineering",
   "trends": [
     {
       "topic": "AI Development",
-      "search_keywords": "frontier-class AI models",
-      "link": "https://en.wikipedia.org/wiki/...",
+      "query_used": "frontier-class AI models",
+      "search_link": "https://en.wikipedia.org/wiki/...",
       "content": "Cleaned Wikipedia content..."
     }
   ]
 }
 ```
 
-## Logging
+**Note**: 
+- One input trend may result in multiple output trend objects
+- Every Wikipedia page scraped appears separately in `trends`
+- `search_link`: Properly URL-encoded Wiki page link
+- `query_used`: The exact query sent to Wikipedia
 
-Logs are written to: `log/scraped-content/wiki-search-{YYYY-MM-DD}.log`
+## Architecture
 
-Each log entry is a JSON object:
-```json
-{"timestamp": "2025-11-26 10:30:45", "level": "INFO", "message": "Processing category", "category": "software_engineering"}
+```
+.
+├── wiki-search.py              # Entry point
+├── src/
+│   └── wiki_search/
+│       ├── __init__.py
+│       ├── config.py           # Configuration management with validation
+│       ├── content_cleaner.py  # Content cleaning with improved patterns
+│       ├── exceptions.py       # Custom exceptions
+│       ├── logger.py           # Logging utilities
+│       ├── main.py             # Main execution with progress tracking
+│       ├── models.py           # Data models
+│       ├── processor.py        # Core processing logic
+│       └── wikipedia_searcher.py  # Wikipedia API with loop prevention
+├── config.yaml
+└── requirements.txt
 ```
 
 ## Error Handling
 
-- **Missing config.yaml**: Raises `ConfigurationError` and exits
-- **Invalid JSON**: Logs error and continues with next category
-- **No input files for today**: Logs warning and exits gracefully (code 0)
-- **Network errors**: Retries 3 times with exponential backoff
-- **Page not found**: Logs warning and continues with next result
+### Network Errors
+- **Timeout**: 15 seconds (explicitly set)
+- **Retry**: 3 attempts with exponential backoff (1s, 2s, 4s)
+- **Action**: Log ERROR with context, skip that search, continue
 
-## Project Structure
+### Zero Results
+- **Action**: Log WARNING with keyword and topic, continue
 
+### Disambiguation Pages
+- **Action**: Automatically follows first option
+- **Loop Prevention**: Tracks visited pages, max depth of 5
+- **Circular Reference**: Detected and logged as WARNING
+
+### Invalid Input
+- **Invalid JSON**: Raises `ValidationError`, logs error, continues with other categories
+- **Missing Config**: Raises `ConfigurationError`, exits with code 1
+- **Invalid Date Format**: Validates YYYY-MM-DD format, exits with error message
+- **Missing Required Fields**: Validates all required fields in input data
+
+### Partial Failures
+- If processing 3 keywords and 2 succeed but 1 fails, successful results are saved
+- Logs clearly indicate partial success: "Collected N Wikipedia pages"
+
+## Logging
+
+### File Location
+Logs are written in JSON format to:
 ```
-.
-├── wiki_search.py              # Main entry point (lightweight)
-├── src/
-│   └── wiki_search/            # Package
-│       ├── __init__.py         # Package initialization
-│       ├── orchestrator.py     # Main workflow orchestration
-│       ├── config.py           # Configuration management
-│       ├── logger.py           # Logging setup
-│       ├── file_handler.py     # File I/O operations
-│       ├── wikipedia_client.py # Wikipedia API client
-│       ├── processor.py        # Category processing logic
-│       ├── content_cleaner.py  # Content cleaning utilities
-│       └── exceptions.py       # Custom exceptions
-├── data/
-│   ├── tech-trend-analysis/
-│   │   └── {YYYY-MM-DD}/      # Input directory
-│   └── scraped-content/
-│       └── {YYYY-MM-DD}/      # Output directory
-├── log/
-│   └── scraped-content/       # Log files
-├── config.yaml                 # Configuration
-├── requirements.txt            # Dependencies
-└── README.md                   # This file
+log/scraped-content/wiki-search-{FEED_DATE}.log
 ```
 
-## Module Responsibilities
+### Log Entry Format
+Each log entry contains:
+- `timestamp`: ISO format timestamp
+- `level`: Log level (INFO, WARNING, ERROR)
+- `message`: Detailed log message with context
+- `module`: Source module name
+- `function`: Source function name
+- `exception`: Stack trace (for ERROR level)
 
-- **orchestrator.py**: Coordinates the entire workflow, initializes components
-- **config.py**: Loads and validates configuration
-- **logger.py**: Sets up JSON logging
-- **file_handler.py**: Handles file I/O operations (read/write/validate)
-- **wikipedia_client.py**: Manages Wikipedia API calls with retry logic
-- **processor.py**: Processes categories and keywords
-- **content_cleaner.py**: Cleans Wikipedia content
-- **exceptions.py**: Custom exception definitions
+### Enhanced Context
+All logs include relevant context:
+- Category name
+- Topic name
+- Search keyword
+- Attempt number (for retries)
+- Progress indicators (e.g., "Processing 3/10")
 
-## Code Quality
+## Content Cleaning
 
-- **Type hints**: All functions have complete type annotations
-- **Docstrings**: Google-style docstrings for all public functions
-- **Max line length**: 100 characters
+The module removes:
+1. **Citation markers**: `[1]`, `[23]`, `[citation needed]`
+2. **Reference sections**: Everything from "== References ==" onward
+3. **Metadata sections**: See also, External links, Further reading, Notes, Bibliography, Sources
+4. **Excessive whitespace**: While preserving paragraph structure
+
+### Section Detection
+- Case-insensitive matching
+- Flexible spacing (handles "==References==" and "== References ==")
+- Handles both singular and plural forms
+
+### Whitespace Normalization
+- Preserves paragraph breaks (double newlines)
+- Removes excessive spacing
+- Maintains readability
+
+## URL Encoding
+
+- Uses proper URL encoding via `urllib.parse.quote()`
+- Handles special characters (e.g., "C++", "AT&T")
+- Safe characters: `/:` (for URL structure)
+
+## Idempotency
+
+Before processing each category:
+1. Check if output file exists: `{scraped_content}/{FEED_DATE}/{category}/wiki-search.json`
+2. If exists → Log INFO, skip processing
+3. Prevents duplicate API calls and processing
+
+## Progress Indication
+
+The module provides real-time feedback:
+```
+INFO - Found 5 categories to process
+INFO - Processing category 1/5: software_engineering
+INFO - Processing trend 2/8: 'AI Development' with 3 keywords
+INFO - Search found 5 results for 'AI models' (topic: 'AI Development')
+INFO - Successfully fetched 4/5 pages for keyword: 'AI models'
+INFO - Trend 'AI Development': collected 12 Wikipedia pages
+INFO - Completed category 'software_engineering': generated 45 result entries
+```
+
+## Code Quality Standards
+
 - **Max function length**: 50 lines
-- **No hardcoded values**: All configuration externalized
+- **Type hints**: Required for all function signatures
+- **Docstrings**: Google style for all public functions
+- **Line length**: Max 100 characters
+- **No hardcoded values**: Use config or constants
+- **Comprehensive validation**: Input data, configuration, dates
+- **Error context**: All errors include relevant context for debugging
 
-## Exit Codes
+## Success Criteria
 
-- `0`: Success or no input files for today
-- `1`: Configuration error or unexpected fatal error
+✅ Automatically processes today's date without manual input  
+✅ Validates feed_date format (YYYY-MM-DD)  
+✅ Validates configuration values (types and ranges)  
+✅ Proper URL encoding for all characters  
+✅ Prevents infinite loops in disambiguation chains  
+✅ Searching, cleaning, and storing wiki content successfully  
+✅ Invalid searches don't stop execution  
+✅ Partial success is handled gracefully  
+✅ Idempotent: Running twice produces same results  
+✅ All code has type hints and docstrings  
+✅ Graceful handling when no input data exists  
+✅ Progress tracking for long-running operations  
+✅ Enhanced logging with full context  
+
+## Troubleshooting
+
+### "Invalid feed_date format" error
+- Ensure date is in YYYY-MM-DD format
+- Example: `--feed_date "2025-02-01"`
+
+### "Configuration file not found" error
+- Ensure `config.yaml` exists in project root
+- Check file path is correct
+
+### "max-search-results must be a positive integer" error
+- Check `config.yaml` has valid integer for `scrape.max-search-results`
+- Value must be > 0
+
+### No results for search
+- Check spelling of search keywords
+- Wikipedia may not have articles for very specific terms
+- Check logs for detailed error messages
+
+## License
+
+MIT
