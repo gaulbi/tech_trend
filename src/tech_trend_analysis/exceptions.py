@@ -1,7 +1,8 @@
 # ============================================================================
-# FILE: src/tech_trend_analysis/exceptions.py
+# src/tech_trend_analysis/exceptions.py
 # ============================================================================
-"""Custom exceptions for tech trend analysis."""
+
+"""Custom exceptions for the tech trend analysis module."""
 
 
 class TechTrendAnalysisError(Exception):
