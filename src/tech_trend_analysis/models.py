@@ -37,6 +37,6 @@ class Trend:
 @dataclass
 class AnalysisReport:
     """Represents a trend analysis report."""
-    analysis_date: str
+    feed_date: str
     category: str
     trends: List[Trend]

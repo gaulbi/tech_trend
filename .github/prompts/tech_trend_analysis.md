@@ -75,7 +75,7 @@ If feed_date is 2025-11-21 and a category is software_engineering, output file i
 ### JSON Structure
 ```json
 {
-  "analysis_date": "2025-11-22",
+  "feed_date": "2025-11-22",
   "category": "software_engineering",
   "trends": [
     {

@@ -184,7 +184,7 @@ class TechTrendProcessor:
         self,
         response: str,
         category: str,
-        analysis_date: str
+        feed_date: str
     ) -> AnalysisReport:
         """
         Parse LLM response into AnalysisReport model.
@@ -192,7 +192,7 @@ class TechTrendProcessor:
         Args:
             response: Raw LLM response
             category: Category name
-            analysis_date: Analysis date
+            feed_date: Feed date
 
         Returns:
             AnalysisReport instance
@@ -223,7 +223,7 @@ class TechTrendProcessor:
             ]
 
             return AnalysisReport(
-                analysis_date=analysis_date,
+                feed_date=feed_date,
                 category=category,
                 trends=trends
             )
@@ -245,7 +245,7 @@ class TechTrendProcessor:
     ) -> None:
         """Save analysis report to file."""
         data = {
-            'analysis_date': report.analysis_date,
+            'feed_date': report.feed_date,
             'category': report.category,
             'trends': [
                 {
