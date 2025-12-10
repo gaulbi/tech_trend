@@ -9,6 +9,7 @@ from urllib.parse import quote
 
 import wikipedia
 
+from .logger import log_error_with_context
 from .content_cleaner import ContentCleaner
 
 logger = logging.getLogger("wiki_search")
@@ -48,7 +49,7 @@ class WikipediaSearcher:
         titles = self._search_with_retry(keyword, topic)
 
         if not titles:
-            logger.warning(
+            logger.debug(
                 f"No Wikipedia results found for keyword: '{keyword}' "
                 f"(topic: '{topic}')"
             )
@@ -93,17 +94,24 @@ class WikipediaSearcher:
                 )
                 return titles
             except wikipedia.exceptions.WikipediaException as e:
-                logger.error(
-                    f"Wikipedia search error for '{keyword}' "
-                    f"(topic: '{topic}'): {e} "
-                    f"(attempt {attempt + 1}/{self.MAX_RETRIES})"
+                log_error_with_context(
+                    logger,
+                    f"Wikipedia search error",
+                    context={
+                        "keyword": keyword,
+                        "topic": topic,
+                        "attempt": f"{attempt + 1}/{self.MAX_RETRIES}",
+                        "error": str(e)
+                    },
+                    exc_info=False
                 )
                 if attempt < self.MAX_RETRIES - 1:
                     time.sleep(self.BACKOFF_DELAYS[attempt])
             except Exception as e:
-                logger.error(
-                    f"Unexpected error searching Wikipedia for '{keyword}' "
-                    f"(topic: '{topic}'): {e}"
+                log_error_with_context(
+                    logger,
+                    f"Unexpected error searching Wikipedia",
+                    context={"keyword": keyword, "topic": topic}
                 )
                 break
 
@@ -133,14 +141,14 @@ class WikipediaSearcher:
 
         # Prevent infinite loops in disambiguation chains
         if title in visited_titles:
-            logger.warning(
+            logger.debug(
                 f"Circular disambiguation detected for '{title}' "
                 f"(keyword: '{keyword}', topic: '{topic}')"
             )
             return None
 
         if len(visited_titles) >= 5:
-            logger.warning(
+            logger.debug(
                 f"Max disambiguation depth reached for '{title}' "
                 f"(keyword: '{keyword}', topic: '{topic}')"
             )
@@ -156,7 +164,7 @@ class WikipediaSearcher:
                 # Pick first option from disambiguation page
                 if e.options:
                     first_option = e.options[0]
-                    logger.info(
+                    logger.debug(
                         f"Disambiguation for '{title}', "
                         f"trying: '{first_option}' "
                         f"(keyword: '{keyword}', topic: '{topic}')"
@@ -169,29 +177,37 @@ class WikipediaSearcher:
                         visited_titles
                     )
                 else:
-                    logger.warning(
+                    logger.debug(
                         f"Disambiguation for '{title}' with no options "
                         f"(keyword: '{keyword}', topic: '{topic}')"
                     )
                     return None
             except wikipedia.exceptions.PageError:
-                logger.warning(
+                logger.debug(
                     f"Page not found: '{title}' "
                     f"(keyword: '{keyword}', topic: '{topic}')"
                 )
                 return None
             except wikipedia.exceptions.WikipediaException as e:
-                logger.error(
-                    f"Wikipedia fetch error for '{title}' "
-                    f"(keyword: '{keyword}', topic: '{topic}'): {e} "
-                    f"(attempt {attempt + 1}/{self.MAX_RETRIES})"
+                log_error_with_context(
+                    logger,
+                    f"Wikipedia fetch error",
+                    context={
+                        "title": title,
+                        "keyword": keyword,
+                        "topic": topic,
+                        "attempt": f"{attempt + 1}/{self.MAX_RETRIES}",
+                        "error": str(e)
+                    },
+                    exc_info=False
                 )
                 if attempt < self.MAX_RETRIES - 1:
                     time.sleep(self.BACKOFF_DELAYS[attempt])
             except Exception as e:
-                logger.error(
-                    f"Unexpected error fetching page '{title}' "
-                    f"(keyword: '{keyword}', topic: '{topic}'): {e}"
+                log_error_with_context(
+                    logger,
+                    f"Unexpected error fetching page",
+                    context={"title": title, "keyword": keyword, "topic": topic}
                 )
                 break
 

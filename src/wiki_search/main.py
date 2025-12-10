@@ -131,10 +131,13 @@ def main() -> None:
             print(f"Error: {e}", file=sys.stderr)
             sys.exit(1)
 
-        # Setup logging
+        # Setup logging with debug mode from environment
+        import os
+        debug_mode = os.getenv('DEBUG', 'false').lower() == 'true'
+        
         log_dir = Path(config.log_dir)
         log_file = log_dir / f"wiki-search-{feed_date}.log"
-        setup_logger(log_file)
+        setup_logger(log_file, debug=debug_mode)
 
         logger.info(f"Starting Wikipedia search for feed date: {feed_date}")
 

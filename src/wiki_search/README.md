@@ -61,6 +61,12 @@ python wiki-search.py --feed_date "2025-02-01"
 python wiki-search.py --category "software_engineering" --feed_date "2025-02-01"
 ```
 
+### Debug Mode
+```bash
+export DEBUG=true
+python wiki-search.py
+```
+
 ## Input Format
 
 Expected input file structure:

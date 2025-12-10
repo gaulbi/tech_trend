@@ -15,6 +15,7 @@ from .models import (
     TrendInput,
     TrendOutput,
 )
+from .logger import log_error_with_context
 from .wikipedia_searcher import WikipediaSearcher
 
 logger = logging.getLogger("wiki_search")
@@ -62,8 +63,11 @@ class WikiSearchProcessor:
         try:
             trend_analysis = self._load_input(category_file)
         except ValidationError as e:
-            logger.error(
-                f"Validation error for category '{category}': {e}"
+            log_error_with_context(
+                logger,
+                f"Validation error for category '{category}'",
+                context={"category": category, "file": str(category_file)},
+                exc_info=False
             )
             print(f"Error processing {category}: {e}")
             return
@@ -251,7 +255,15 @@ class WikiSearchProcessor:
                 json.dump(output_data, f, indent=2, ensure_ascii=False)
             logger.info(f"Saved output to: {output_file}")
         except Exception as e:
-            logger.error(f"Error saving output to {output_file}: {e}")
+            log_error_with_context(
+                logger,
+                f"Error saving output",
+                context={
+                    "file": str(output_file),
+                    "category": category,
+                    "trends_count": len(trends)
+                }
+            )
             raise
 
     def _get_output_path(self, feed_date: str, category: str) -> Path:
