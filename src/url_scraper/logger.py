@@ -1,73 +1,117 @@
-"""Logging utilities for URL scraper."""
+"""
+Logging utilities module.
+"""
 
 import json
 import logging
-from datetime import date
+import sys
+import traceback
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
 
+class ColoredFormatter(logging.Formatter):
+    """Formatter that adds colors to console output."""
+    
+    COLORS = {
+        'DEBUG': '\033[36m',      # Cyan
+        'INFO': '\033[32m',       # Green
+        'WARNING': '\033[33m',    # Yellow
+        'ERROR': '\033[31m',      # Red
+        'CRITICAL': '\033[35m',   # Magenta
+    }
+    RESET = '\033[0m'
+    
+    def format(self, record: logging.LogRecord) -> str:
+        """
+        Format log record with colors.
+        
+        Args:
+            record: Log record to format.
+            
+        Returns:
+            Formatted log message with colors.
+        """
+        color = self.COLORS.get(record.levelname, self.RESET)
+        record.levelname = f"{color}{record.levelname}{self.RESET}"
+        return super().format(record)
+
+
 class JSONFormatter(logging.Formatter):
-    """Custom formatter that outputs JSON log records."""
+    """Formatter that outputs JSON log records."""
     
     def format(self, record: logging.LogRecord) -> str:
         """
         Format log record as JSON.
         
         Args:
-            record: Log record to format
+            record: Log record to format.
             
         Returns:
-            str: JSON-formatted log entry
+            JSON formatted log message.
         """
-        log_obj: Dict[str, Any] = {
-            "timestamp": self.formatTime(record, self.datefmt),
+        log_data: Dict[str, Any] = {
+            "timestamp": datetime.fromtimestamp(
+                record.created
+            ).isoformat(),
             "level": record.levelname,
-            "message": record.getMessage(),
             "module": record.module,
             "function": record.funcName,
-            "line": record.lineno
+            "line": record.lineno,
+            "message": record.getMessage(),
         }
         
         if record.exc_info:
-            log_obj["exception"] = self.formatException(record.exc_info)
+            log_data["traceback"] = "".join(
+                traceback.format_exception(*record.exc_info)
+            )
         
-        return json.dumps(log_obj)
+        return json.dumps(log_data)
 
 
-def setup_logger(log_dir: Path, today: date) -> logging.Logger:
+def setup_logging(log_dir: Path, feed_date: str) -> None:
     """
-    Set up logger with JSON formatting.
+    Setup logging configuration.
     
     Args:
-        log_dir: Directory for log files
-        today: Today's date for log filename
-        
-    Returns:
-        logging.Logger: Configured logger instance
+        log_dir: Directory to store log files.
+        feed_date: Feed date for log file naming.
     """
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / f"url-scraper-{today.strftime('%Y-%m-%d')}.log"
+    log_file = log_dir / f"url-scraper-{feed_date}.log"
     
-    logger = logging.getLogger("url_scraper")
-    logger.setLevel(logging.INFO)
+    # Root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
     
-    # Remove existing handlers
-    logger.handlers.clear()
+    # Clear existing handlers
+    root_logger.handlers.clear()
     
-    # File handler with JSON formatting
-    file_handler = logging.FileHandler(log_file)
-    file_handler.setLevel(logging.INFO)
+    # File handler with JSON formatter
+    file_handler = logging.FileHandler(log_file, encoding='utf-8')
+    file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(JSONFormatter())
-    logger.addHandler(file_handler)
+    root_logger.addHandler(file_handler)
     
-    # Console handler with simple formatting
-    console_handler = logging.StreamHandler()
+    # Console handler with colored formatter
+    console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
-    console_formatter = logging.Formatter(
-        '%(asctime)s - %(levelname)s - %(message)s'
+    console_formatter = ColoredFormatter(
+        '%(asctime)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
     )
     console_handler.setFormatter(console_formatter)
-    logger.addHandler(console_handler)
+    root_logger.addHandler(console_handler)
+
+
+def get_logger(name: str) -> logging.Logger:
+    """
+    Get logger instance.
     
-    return logger
+    Args:
+        name: Logger name (typically __name__).
+        
+    Returns:
+        Logger instance.
+    """
+    return logging.getLogger(name)

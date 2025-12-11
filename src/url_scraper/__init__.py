@@ -1,3 +1,11 @@
-"""URL Scraper Package - Clean content extraction from URLs."""
+"""
+URL Scraper package.
 
-__version__ = "1.0.0"
+This package provides functionality for scraping URLs from tech trend
+analysis reports and extracting clean, readable content.
+"""
+
+from .config import Config, ConfigurationError
+from .validator import ValidationError
+
+__all__ = ["Config", "ConfigurationError", "ValidationError"]

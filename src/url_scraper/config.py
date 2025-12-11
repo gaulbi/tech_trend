@@ -1,57 +1,76 @@
-"""Configuration management for URL scraper."""
+"""
+Configuration management module.
+"""
 
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
+
 import yaml
 
-from .exceptions import ConfigurationError
+
+class ConfigurationError(Exception):
+    """Raised when configuration is invalid or missing."""
+    pass
 
 
 class Config:
-    """Configuration loader and validator."""
+    """Configuration manager for URL scraper."""
     
-    def __init__(self, config_path: Path = Path("config.yaml")):
+    def __init__(self, config_data: Dict[str, Any]):
         """
-        Initialize configuration from YAML file.
+        Initialize configuration.
         
         Args:
-            config_path: Path to configuration file
+            config_data: Configuration dictionary from YAML.
             
         Raises:
-            ConfigurationError: If config file is missing or invalid
+            ConfigurationError: If required fields are missing.
         """
-        self.config_path = config_path
-        self.config = self._load_config()
-        self._validate_config()
+        self._validate(config_data)
+        self._config = config_data
     
-    def _load_config(self) -> Dict[str, Any]:
+    @classmethod
+    def load(cls, config_path: str) -> "Config":
         """
         Load configuration from YAML file.
         
+        Args:
+            config_path: Path to config.yaml file.
+            
         Returns:
-            dict: Parsed configuration
+            Config instance.
             
         Raises:
-            ConfigurationError: If file is missing or invalid YAML
+            ConfigurationError: If file is missing or invalid.
         """
-        if not self.config_path.exists():
+        path = Path(config_path)
+        if not path.exists():
             raise ConfigurationError(
-                f"Configuration file not found: {self.config_path}"
+                f"Configuration file not found: {config_path}"
             )
         
         try:
-            with open(self.config_path, 'r') as f:
-                config = yaml.safe_load(f)
-            return config
+            with open(path, 'r', encoding='utf-8') as f:
+                config_data = yaml.safe_load(f)
+            return cls(config_data)
         except yaml.YAMLError as e:
-            raise ConfigurationError(f"Invalid YAML in config file: {e}")
+            raise ConfigurationError(
+                f"Invalid YAML in config file: {e}"
+            )
+        except Exception as e:
+            raise ConfigurationError(
+                f"Error loading config file: {e}"
+            )
     
-    def _validate_config(self) -> None:
+    def _validate(self, config_data: Dict[str, Any]) -> None:
         """
-        Validate required configuration keys exist.
+        Validate configuration structure.
         
+        Args:
+            config_data: Configuration dictionary.
+            
         Raises:
-            ConfigurationError: If required keys are missing
+            ConfigurationError: If required fields are missing.
         """
         required_keys = [
             ("tech-trend-analysis", "analysis-report"),
@@ -60,39 +79,33 @@ class Config:
             ("scrape", "log")
         ]
         
-        for *parents, key in required_keys:
-            current = self.config
+        for keys in required_keys:
+            data = config_data
             path = []
-            
-            for parent in parents:
-                if parent not in current:
+            for key in keys:
+                path.append(key)
+                if key not in data:
                     raise ConfigurationError(
-                        f"Missing config key: {'.'.join([*path, parent])}"
+                        f"Missing required config: {'.'.join(path)}"
                     )
-                current = current[parent]
-                path.append(parent)
-            
-            if key not in current:
-                raise ConfigurationError(
-                    f"Missing config key: {'.'.join([*path, key])}"
-                )
+                data = data[key]
     
     @property
-    def analysis_report_dir(self) -> Path:
-        """Get tech trend analysis base directory."""
-        return Path(self.config["tech-trend-analysis"]["analysis-report"])
+    def analysis_report_dir(self) -> str:
+        """Get analysis report base directory."""
+        return self._config["tech-trend-analysis"]["analysis-report"]
     
     @property
-    def scrapped_content_dir(self) -> Path:
+    def scraped_content_dir(self) -> str:
         """Get scraped content base directory."""
-        return Path(self.config["scrape"]["url-scraped-content"])
+        return self._config["scrape"]["url-scraped-content"]
     
     @property
     def timeout(self) -> int:
         """Get request timeout in seconds."""
-        return int(self.config["scrape"]["timeout"])
+        return self._config["scrape"]["timeout"]
     
     @property
-    def log_dir(self) -> Path:
+    def scrape_log_dir(self) -> str:
         """Get log directory."""
-        return Path(self.config["scrape"]["log"])
+        return self._config["scrape"]["log"]

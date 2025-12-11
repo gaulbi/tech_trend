@@ -1,20 +1,19 @@
 # URL Scraper
 
-Production-grade Python module for scraping and cleaning content from URLs in tech trend analysis files.
+A production-grade Python module for scraping and cleaning web content from tech trend analysis reports.
 
 ## Features
 
-- **Automatic Date Detection**: Processes only today's data automatically
-- **Idempotent**: Safe to run multiple times per day
-- **Robust Error Handling**: Retry logic with exponential backoff
-- **Clean Content Extraction**: Removes HTML tags, scripts, and irrelevant characters
-- **JSON Logging**: Structured logging for monitoring and debugging
-- **Type-Safe**: Full type hints and validation
+- ✅ Robust URL scraping with retry logic and exponential backoff
+- ✅ Clean content extraction using readability-lxml and BeautifulSoup
+- ✅ Comprehensive JSON logging with colored console output
+- ✅ Idempotent processing (safe to run multiple times)
+- ✅ Type hints and docstrings throughout
+- ✅ Clean architecture with separation of concerns
 
 ## Installation
 
 ```bash
-# Install dependencies
 pip install -r requirements.txt
 ```
 
@@ -34,32 +33,69 @@ scrape:
 
 ## Usage
 
+### Process all categories for today
 ```bash
-# Run the scraper for today's date
-python url_scraper.py
+python url-scraper.py
 ```
 
-The scraper will:
-1. Automatically determine today's date
-2. Look for category files in `data/tech-trend-analysis/{TODAY}/`
-3. Skip categories that have already been processed
-4. Scrape URLs and extract clean content
-5. Save results to `data/scraped-content/{TODAY}/{category}/url-scrape.json`
+### Process specific category
+```bash
+python url-scraper.py --category "software_engineering"
+```
+
+### Process specific feed date
+```bash
+python url-scraper.py --feed_date "2025-02-01"
+```
+
+### Process specific category and date
+```bash
+python url-scraper.py --category "software_engineering" --feed_date "2025-02-01"
+```
+
+## Project Structure
+
+```
+.
+├── url-scraper.py              # Entry point
+├── src/
+│   └── url_scraper/
+│       ├── __init__.py         # Package initialization
+│       ├── main.py             # Main entry logic
+│       ├── config.py           # Configuration management
+│       ├── logger.py           # Logging utilities
+│       ├── processor.py        # Main processing logic
+│       ├── models.py           # Data models
+│       ├── scraper.py          # URL scraping logic
+│       └── validator.py        # Validation utilities
+├── data/
+│   ├── tech-trend-analysis/    # Input directory
+│   └── scraped-content/        # Output directory
+├── log/                        # Log files
+├── config.yaml                 # Configuration file
+├── requirements.txt            # Dependencies
+└── README.md                   # This file
+```
 
 ## Input Format
 
-Input files: `data/tech-trend-analysis/{TODAY}/{category}.json`
+Input files are located at:
+```
+data/tech-trend-analysis/{FEED_DATE}/{category}.json
+```
 
+Example input structure:
 ```json
 {
-  "analysis_date": "2025-11-26",
+  "feed_date": "2025-11-26",
   "category": "software_engineering",
   "trends": [
     {
-      "topic": "AI Agents",
-      "reason": "Rising popularity...",
-      "links": ["https://example.com/article1"],
-      "search_keywords": ["AI", "Agents"]
+      "topic": "AI Model Evolution",
+      "reason": "Significant advancements",
+      "score": 10,
+      "links": ["https://example.com/article1", "https://example.com/article2"],
+      "search_keywords": ["AI models", "machine learning"]
     }
   ]
 }
@@ -67,18 +103,22 @@ Input files: `data/tech-trend-analysis/{TODAY}/{category}.json`
 
 ## Output Format
 
-Output files: `data/scraped-content/{TODAY}/{category}/url-scrape.json`
+Output files are saved at:
+```
+data/scraped-content/{FEED_DATE}/{category}/url-scrape.json
+```
 
+Example output structure:
 ```json
 {
-  "analysis_date": "2025-11-26",
+  "feed_date": "2025-11-26",
   "category": "software_engineering",
   "trends": [
     {
-      "topic": "AI Agents",
-      "link": "https://example.com/article1",
-      "content": "Extracted readable text...",
-      "search_keywords": ["AI", "Agents"]
+      "topic": "AI Model Evolution",
+      "query_used": "",
+      "search_link": "https://example.com/article1",
+      "content": "Cleaned article content..."
     }
   ]
 }
@@ -86,70 +126,42 @@ Output files: `data/scraped-content/{TODAY}/{category}/url-scrape.json`
 
 ## Logging
 
-Logs are written to: `log/scraped-content/url-scraper-{TODAY}.log`
+Logs are written to:
+```
+log/scraped-content/url-scraper-{FEED_DATE}.log
+```
 
-Format: One JSON object per line
-
+Log format (JSON):
 ```json
 {
-  "timestamp": "2025-11-26 10:30:45,123",
+  "timestamp": "2025-11-26T10:30:45.123456",
   "level": "INFO",
-  "message": "Successfully fetched: https://example.com",
-  "module": "url_fetcher",
-  "function": "fetch",
-  "line": 42
+  "module": "processor",
+  "function": "process_category",
+  "line": 42,
+  "message": "Processing category: software_engineering"
 }
 ```
 
 ## Error Handling
 
-- **Network Errors**: 3 retries with exponential backoff (1s, 2s, 4s)
-- **Timeout**: 60 seconds per request
-- **Invalid JSON**: Logs error, continues with other categories
-- **No Input Data**: Exits gracefully with warning
+- **Network errors**: 3 retries with exponential backoff (1s, 2s, 4s)
+- **Timeout**: 60 seconds (configurable)
+- **Invalid JSON**: Logs error and continues with remaining categories
+- **Missing files**: Logs warning and exits gracefully
 
 ## Idempotency
 
-Running the scraper multiple times on the same day will:
-- Check if output files already exist
-- Skip processing for completed categories
-- Only process new or failed categories
-
-## Project Structure
+The scraper checks for existing output files before processing. If an output file already exists for a category and feed date, it will skip processing and log:
 
 ```
-.
-├── url_scraper.py              # Main entry point
-├── requirements.txt            # Python dependencies
-├── config.yaml                 # Configuration (create this)
-├── src/
-│   └── url_scraper/
-│       ├── __init__.py
-│       ├── scraper.py          # Main scraper logic
-│       ├── config.py           # Configuration management
-│       ├── logger.py           # Logging utilities
-│       ├── url_fetcher.py      # URL fetching with retry
-│       ├── content_extractor.py # Content cleaning
-│       ├── models.py           # Data models
-│       └── exceptions.py       # Custom exceptions
-├── data/
-│   ├── tech-trend-analysis/
-│   │   └── {TODAY}/            # Input files
-│   └── scraped-content/
-│       └── {TODAY}/            # Output files
-└── log/
-    └── scraped-content/       # Log files
+Skipping {category} (already processed for {FEED_DATE})
 ```
 
 ## Code Quality
 
-- **Type Hints**: All functions have type annotations
-- **Docstrings**: Google-style docstrings for all public functions
-- **Max Function Length**: 50 lines
-- **Line Length**: Max 100 characters
-- **No Hardcoded Values**: All configuration in config.yaml
-
-## Exit Codes
-
-- `0`: Success (or no data for today)
-- `1`: Configuration error or unexpected failure
+- Maximum function length: 50 lines
+- Type hints on all function signatures
+- Google-style docstrings
+- Maximum line length: 100 characters
+- No hardcoded values (uses config or constants)

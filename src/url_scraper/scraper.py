@@ -1,253 +1,191 @@
-"""Main URL scraper implementation."""
+"""
+URL scraping and content extraction module.
+"""
 
-import json
-from datetime import date
-from pathlib import Path
-from typing import List, Optional
-import logging
+import re
+import time
+from typing import Optional
 
-from .config import Config
-from .logger import setup_logger
-from .url_fetcher import URLFetcher
-from .content_extractor import ContentExtractor
-from .models import (
-    AnalysisInput, AnalysisOutput, TrendInput, TrendOutput
-)
-from .exceptions import ValidationError
+import requests
+from bs4 import BeautifulSoup, Comment
+from readability import Document
+
+from .logger import get_logger
 
 
 class URLScraper:
-    """Main URL scraper orchestrator."""
+    """Handles URL scraping with retry logic and content cleaning."""
     
-    def __init__(self, config_path: Path = Path("config.yaml")):
+    MAX_RETRIES = 3
+    BACKOFF_DELAYS = [1, 2, 4]  # Exponential backoff in seconds
+    
+    def __init__(self, timeout: int):
         """
-        Initialize URL scraper.
+        Initialize scraper.
         
         Args:
-            config_path: Path to configuration file
+            timeout: Request timeout in seconds.
         """
-        self.config = Config(config_path)
-        self.today = date.today()
-        self.logger = setup_logger(self.config.log_dir, self.today)
-        self.fetcher = URLFetcher(self.config.timeout, self.logger)
-        self.extractor = ContentExtractor()
-        
-        self.logger.info(f"URL Scraper initialized for {self.today}")
+        self.timeout = timeout
+        self.logger = get_logger(__name__)
     
-    def run(self) -> None:
-        """Run the scraper for today's date."""
-        input_dir = self._get_input_directory()
-        
-        if not input_dir.exists():
-            self.logger.warning(
-                f"No input directory for today: {input_dir}"
-            )
-            print(f"No data found for {self.today}. Exiting gracefully.")
-            return
-        
-        category_files = list(input_dir.glob("*.json"))
-        
-        if not category_files:
-            self.logger.warning(
-                f"No category files found in {input_dir}"
-            )
-            print(f"No category files for {self.today}. Exiting gracefully.")
-            return
-        
-        self.logger.info(
-            f"Found {len(category_files)} categories to process"
-        )
-        
-        for category_file in category_files:
-            self._process_category(category_file)
-        
-        self.fetcher.close()
-        self.logger.info("URL scraping completed")
-    
-    def _get_input_directory(self) -> Path:
-        """Get today's input directory."""
-        date_str = self.today.strftime('%Y-%m-%d')
-        return self.config.analysis_report_dir / date_str
-    
-    def _get_output_path(self, category: str) -> Path:
+    def scrape(self, url: str) -> Optional[str]:
         """
-        Get output file path for a category.
+        Scrape and clean content from URL with retry logic.
         
         Args:
-            category: Category name
+            url: URL to scrape.
             
         Returns:
-            Path: Output file path
+            Cleaned text content, or None if scraping failed.
         """
-        date_str = self.today.strftime('%Y-%m-%d')
-        output_dir = self.config.scrapped_content_dir / date_str / category
-        return output_dir / "url-scrape.json"
+        self.logger.info(f"Scraping: {url}")
+        
+        html = self._fetch_with_retry(url)
+        if not html:
+            return None
+        
+        content = self._extract_clean_content(html)
+        self.logger.info(f"Successfully scraped: {url}")
+        
+        return content
     
-    def _process_category(self, category_file: Path) -> None:
+    def _fetch_with_retry(self, url: str) -> Optional[str]:
         """
-        Process a single category file.
+        Fetch URL with exponential backoff retry.
         
         Args:
-            category_file: Path to category JSON file
-        """
-        category = category_file.stem
-        output_path = self._get_output_path(category)
-        
-        # Check idempotency
-        if output_path.exists():
-            message = (
-                f"Skipping {category} "
-                f"(already processed for {self.today})"
-            )
-            self.logger.info(message)
-            print(message)
-            return
-        
-        try:
-            analysis_input = self._load_analysis_input(category_file)
-            analysis_output = self._scrape_trends(analysis_input)
-            self._save_output(output_path, analysis_output)
-            
-            self.logger.info(f"Successfully processed category: {category}")
-            
-        except ValidationError as e:
-            self.logger.error(
-                f"Validation error for {category}: {e}"
-            )
-        except Exception as e:
-            self.logger.error(
-                f"Unexpected error processing {category}: {e}", 
-                exc_info=True
-            )
-    
-    def _load_analysis_input(self, file_path: Path) -> AnalysisInput:
-        """
-        Load and validate analysis input file.
-        
-        Args:
-            file_path: Path to input JSON file
+            url: URL to fetch.
             
         Returns:
-            AnalysisInput: Validated input data
-            
-        Raises:
-            ValidationError: If JSON is invalid or malformed
+            HTML content or None if all retries failed.
         """
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            
-            trends = [
-                TrendInput(
-                    topic=t['topic'],
-                    reason=t['reason'],
-                    links=t['links'],
-                    search_keywords=t['search_keywords']
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                response = requests.get(
+                    url,
+                    timeout=self.timeout,
+                    headers={'User-Agent': 'Mozilla/5.0'}
                 )
-                for t in data['trends']
-            ]
-            
-            return AnalysisInput(
-                analysis_date=data['analysis_date'],
-                category=data['category'],
-                trends=trends
-            )
-            
-        except json.JSONDecodeError as e:
-            raise ValidationError(f"Invalid JSON in {file_path}: {e}")
-        except KeyError as e:
-            raise ValidationError(f"Missing required field in {file_path}: {e}")
-    
-    def _scrape_trends(self, analysis: AnalysisInput) -> AnalysisOutput:
-        """
-        Scrape all URLs from trends.
-        
-        Args:
-            analysis: Input analysis data
-            
-        Returns:
-            AnalysisOutput: Output with scraped content
-        """
-        output_trends: List[TrendOutput] = []
-        
-        for trend in analysis.trends:
-            for link in trend.links:
-                content = self._scrape_url(link)
+                response.raise_for_status()
+                return response.text
                 
-                if content:
-                    output_trends.append(
-                        TrendOutput(
-                            topic=trend.topic,
-                            link=link,
-                            content=content,
-                            search_keywords=trend.search_keywords
-                        )
-                    )
-                else:
-                    self.logger.warning(
-                        f"Skipping trend '{trend.topic}' "
-                        f"link {link} (fetch failed)"
-                    )
-        
-        return AnalysisOutput(
-            analysis_date=analysis.analysis_date,
-            category=analysis.category,
-            trends=output_trends
-        )
-    
-    def _scrape_url(self, url: str) -> Optional[str]:
-        """
-        Scrape and clean content from a URL.
-        
-        Args:
-            url: URL to scrape
+            except requests.Timeout:
+                self._handle_retry_error(
+                    url, attempt, "Timeout"
+                )
+            except requests.RequestException as e:
+                self._handle_retry_error(
+                    url, attempt, f"Request error: {e}"
+                )
+            except Exception as e:
+                self.logger.error(
+                    f"Unexpected error fetching {url}: {e}",
+                    exc_info=True
+                )
+                return None
             
-        Returns:
-            Optional[str]: Cleaned content or None if failed
-        """
-        html = self.fetcher.fetch(url)
+            if attempt < self.MAX_RETRIES - 1:
+                time.sleep(self.BACKOFF_DELAYS[attempt])
         
-        if html is None:
-            return None
-        
-        try:
-            content = self.extractor.extract_clean_content(html)
-            return content
-        except Exception as e:
-            self.logger.error(
-                f"Error extracting content from {url}: {e}"
-            )
-            return None
+        self.logger.error(
+            f"Failed to fetch {url} after {self.MAX_RETRIES} attempts"
+        )
+        return None
     
-    def _save_output(
+    def _handle_retry_error(
         self, 
-        output_path: Path, 
-        analysis: AnalysisOutput
+        url: str, 
+        attempt: int, 
+        error_msg: str
     ) -> None:
         """
-        Save output to JSON file.
+        Handle retry errors with appropriate logging.
         
         Args:
-            output_path: Path to save output
-            analysis: Analysis output data
+            url: URL being fetched.
+            attempt: Current attempt number (0-indexed).
+            error_msg: Error message.
         """
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        if attempt < self.MAX_RETRIES - 1:
+            self.logger.warning(
+                f"{error_msg} for {url}, "
+                f"retrying ({attempt + 1}/{self.MAX_RETRIES})..."
+            )
+        else:
+            self.logger.error(
+                f"{error_msg} for {url}, "
+                f"all retries exhausted"
+            )
+    
+    def _extract_clean_content(self, html: str) -> str:
+        """
+        Extract and clean readable content from HTML.
         
-        output_data = {
-            "analysis_date": analysis.analysis_date,
-            "category": analysis.category,
-            "trends": [
-                {
-                    "topic": t.topic,
-                    "link": t.link,
-                    "content": t.content,
-                    "search_keywords": t.search_keywords
-                }
-                for t in analysis.trends
-            ]
-        }
+        Args:
+            html: Raw HTML content.
+            
+        Returns:
+            Cleaned text content.
+        """
+        # Use readability to extract main content
+        doc = Document(html)
+        content_html = doc.summary()
         
-        with open(output_path, 'w', encoding='utf-8') as f:
-            json.dump(output_data, f, indent=2, ensure_ascii=False)
+        # Parse with BeautifulSoup
+        soup = BeautifulSoup(content_html, 'html.parser')
         
-        self.logger.info(f"Saved output to {output_path}")
+        # Sanitize: Remove unwanted tags
+        self._remove_unwanted_tags(soup)
+        
+        # Extract text
+        text = soup.get_text()
+        
+        # Normalize whitespace
+        text = self._normalize_whitespace(text)
+        
+        return text
+    
+    def _remove_unwanted_tags(self, soup: BeautifulSoup) -> None:
+        """
+        Remove unwanted HTML tags from soup.
+        
+        Args:
+            soup: BeautifulSoup object to clean (modified in-place).
+        """
+        unwanted_tags = ['script', 'style', 'meta', 'noscript']
+        
+        for tag in unwanted_tags:
+            for element in soup.find_all(tag):
+                element.decompose()
+        
+        # Remove HTML comments
+        for comment in soup.find_all(
+            string=lambda text: isinstance(text, Comment)
+        ):
+            comment.extract()
+    
+    def _normalize_whitespace(self, text: str) -> str:
+        """
+        Normalize whitespace in text.
+        
+        Args:
+            text: Text to normalize.
+            
+        Returns:
+            Normalized text.
+        """
+        # Replace multiple spaces with single space
+        text = re.sub(r' +', ' ', text)
+        
+        # Replace multiple newlines with double newline (paragraph)
+        text = re.sub(r'\n\s*\n+', '\n\n', text)
+        
+        # Remove leading/trailing whitespace from lines
+        lines = [line.strip() for line in text.split('\n')]
+        text = '\n'.join(lines)
+        
+        # Remove leading/trailing whitespace
+        text = text.strip()
+        
+        return text
