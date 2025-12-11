@@ -18,7 +18,7 @@ import os
 
 # Add parent directory to path to import embedding clients
 sys.path.insert(0, str(Path(__file__).parent))
-from src.scrapped_content_embedder.embedding_clients import EmbeddingClientFactory
+from src.scrapped_content_embedder.embedding_clients import EmbedderFactory
 
 
 def load_config() -> Dict[str, Any]:
@@ -72,7 +72,7 @@ def initialize_embedding_client(config: Dict[str, Any]):
     print(f"   Provider: {provider}")
     print(f"   Model: {model}")
     
-    return EmbeddingClientFactory.create_client(
+    return EmbedderFactory.create_client(
         provider=provider,
         model_name=model,
         timeout=timeout

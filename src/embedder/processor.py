@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
 from .chunker import TextChunker
-from .config import get_database_path, get_scrape_path
+from .config import get_database_path, get_scrape_path, get_collection_name
 from .database import EmbeddingDatabase
 from .embeddings.factory import EmbedderFactory
 from .exceptions import ValidationError
@@ -40,7 +40,8 @@ class EmbeddingProcessor:
         self.embedder = EmbedderFactory.create(config)
         
         self.database = EmbeddingDatabase(
-            get_database_path(config)
+            get_database_path(config),
+            get_collection_name(config)
         )
         
         self.batch_size = config['embedding']['batch-size']

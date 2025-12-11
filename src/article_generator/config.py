@@ -1,91 +1,101 @@
-"""Configuration module for article generator."""
-
+# ============================================================================
+# src/article_generator/config.py
+# ============================================================================
+"""Configuration management."""
+import os
 from pathlib import Path
 from typing import Any, Dict
-
 import yaml
-from pydantic import BaseModel, Field, field_validator
+from dotenv import load_dotenv
+from .exceptions import ConfigurationError
 
 
-class ConfigurationError(Exception):
-    """Raised when configuration is invalid or missing."""
-    pass
-
-
-class LLMConfig(BaseModel):
-    """LLM configuration settings."""
+class Config:
+    """Configuration manager."""
     
-    server: str = Field(..., description="LLM provider name")
-    llm_model: str = Field(..., alias="llm-model")
-    timeout: int = Field(default=60, ge=1)
-    retry: int = Field(default=3, ge=1)
-
-
-class TechTrendAnalysisConfig(BaseModel):
-    """Tech trend analysis paths."""
-    
-    analysis_report: str = Field(..., alias="analysis-report")
-
-
-class ArticleGeneratorConfig(BaseModel):
-    """Article generator settings."""
-    
-    system_prompt: str = Field(..., alias="system-prompt")
-    user_prompt: str = Field(..., alias="user-prompt")
-    tech_trend_article: str = Field(..., alias="tech-trend-article")
-    log: str
-
-
-class EmbeddingConfig(BaseModel):
-    """Embedding configuration."""
-    
-    embedding_provider: str = Field(..., alias="embedding-provider")
-    embedding_model: str = Field(..., alias="embedding-model")
-    timeout: int = Field(default=60, ge=1)
-    max_retries: int = Field(default=3, ge=1, alias="max-retries")
-    database_path: str = Field(..., alias="database-path")
-    ktop: int = Field(default=20, ge=1)
-
-
-class Config(BaseModel):
-    """Root configuration model."""
-    
-    llm: LLMConfig
-    tech_trend_analysis: TechTrendAnalysisConfig = Field(
-        ..., alias="tech-trend-analysis"
-    )
-    article_generator: ArticleGeneratorConfig = Field(
-        ..., alias="article-generator"
-    )
-    embedding: EmbeddingConfig
-
-
-def load_config(config_path: str = "./config.yaml") -> Config:
-    """Load and validate configuration from YAML file.
-    
-    Args:
-        config_path: Path to configuration file
+    def __init__(self, config_path: str = "config.yaml"):
+        """
+        Initialize configuration.
         
-    Returns:
-        Validated Config object
+        Args:
+            config_path: Path to configuration file
+            
+        Raises:
+            ConfigurationError: If config file is missing or invalid
+        """
+        load_dotenv()
         
-    Raises:
-        ConfigurationError: If config file is missing or invalid
-    """
-    path = Path(config_path)
-    
-    if not path.exists():
-        raise ConfigurationError(
-            f"Configuration file not found: {config_path}"
-        )
-    
-    try:
-        with open(path, "r") as f:
-            data = yaml.safe_load(f)
+        if not Path(config_path).exists():
+            raise ConfigurationError(
+                f"Configuration file not found: {config_path}"
+            )
         
-        return Config(**data)
+        with open(config_path, 'r', encoding='utf-8') as f:
+            self._config: Dict[str, Any] = yaml.safe_load(f)
+        
+        self._validate_config()
     
-    except yaml.YAMLError as e:
-        raise ConfigurationError(f"Invalid YAML in config file: {e}")
-    except Exception as e:
-        raise ConfigurationError(f"Failed to load configuration: {e}")
+    def _validate_config(self) -> None:
+        """Validate configuration structure."""
+        required_keys = [
+            'llm', 'tech-trend-analysis', 'article-generator',
+            'embedding', 'rag'
+        ]
+        for key in required_keys:
+            if key not in self._config:
+                raise ConfigurationError(f"Missing required config: {key}")
+    
+    def get(self, key_path: str, default: Any = None) -> Any:
+        """
+        Get config value by dot-notation path.
+        
+        Args:
+            key_path: Dot-separated path (e.g., 'llm.server')
+            default: Default value if key not found
+            
+        Returns:
+            Configuration value
+        """
+        keys = key_path.split('.')
+        value = self._config
+        
+        for key in keys:
+            if isinstance(value, dict) and key in value:
+                value = value[key]
+            else:
+                return default
+        
+        return value
+    
+    def get_api_key(self, provider: str) -> str:
+        """
+        Get API key from environment.
+        
+        Args:
+            provider: Provider name (openai, deepseek, etc.)
+            
+        Returns:
+            API key
+            
+        Raises:
+            ConfigurationError: If API key not found
+        """
+        key_map = {
+            'openai': 'OPENAI_API_KEY',
+            'deepseek': 'DEEPSEEK_API_KEY',
+            'claude': 'CLAUDE_API_KEY',
+            'voyageai': 'VOYAGEAI_API_KEY',
+            'gemini': 'GEMINI_API_KEY'
+        }
+        
+        env_var = key_map.get(provider.lower())
+        if not env_var:
+            raise ConfigurationError(f"Unknown provider: {provider}")
+        
+        api_key = os.getenv(env_var)
+        if not api_key:
+            raise ConfigurationError(
+                f"API key not found: {env_var}"
+            )
+        
+        return api_key

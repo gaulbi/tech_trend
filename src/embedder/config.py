@@ -105,3 +105,15 @@ def get_database_path(config: Dict[str, Any]) -> Path:
         Path to database directory
     """
     return Path(config['embedding']['database-path'])
+
+def get_collection_name(config: Dict[str, Any]) -> str:
+    """
+    Get the ChromaDB collection name
+
+    Args:
+        config: Configuration dictionary
+    
+    Returns:
+        collection name
+    """
+    return config['embedding']['collection-name']

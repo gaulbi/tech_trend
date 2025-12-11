@@ -1,5 +1,8 @@
 # ============================================================================
-# src/article_generator/__init__.py
+# src/article_generator/rag/__init__.py
 # ============================================================================
-"""Article Generator Package"""
-__version__ = "1.0.0"
+"""RAG (Retrieval-Augmented Generation) package."""
+
+from .retriever import RAGRetriever
+
+__all__ = ['RAGRetriever']

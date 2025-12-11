@@ -19,16 +19,15 @@ The text may be incomplete, duplicated, or chunked, so extract only the most imp
 
 ## Your Tasks
 
-1. Identify the strongest trends, patterns, or signals related directly to the given keywords.
-2. Synthesize fragmented information into a single clear, coherent technical article.
-3. Ensure the English article follows a **web-blog-friendly structure**:
- - **Markdown format**
- - **Short summary paragraph**
- - **3–4 well-structured paragraphs**
- - **Readable, skimmable, high-impact writing for senior engineers**
-4. **Emphasize all important keywords/terms using bold Markdown**, especially the Required Keywords and any key technical concepts.
-5. After writing the English article, provide a **natural, professional Korean adaptation** (not a literal translation) as defined in the System Prompt.
-6. Follow **exactly** the output format described in the System Prompt.
+1. Identify the strongest trends, patterns, or signals related **directly** to the given keywords.
+2. Combine the fragmented context into one **clear**, **easy-to-follow** technical narrative.
+3. Make sure the English article uses:
+    - Markdown
+    - A short, accessible summary paragraph
+    - **3–4 paragraphs** that introduce the topic gently, build understanding, and explain real-world relevance
+4. **Bold** all important keywords and key technical concepts to improve readability.
+5. After finishing the English article, provide a **natural**, **professional Korean** adaptation (not a literal translation) following the System Prompt.
+6. Follow the output format **exactly** as defined in the System Prompt.
 
 Proceed now.
 

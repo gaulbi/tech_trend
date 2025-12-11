@@ -1,8 +1,0 @@
-article_generator
-chromadb_tester
-embedder
-rss_fetcher
-tech_trend_analysis
-url_scraper
-web_scraper
-wiki_search

@@ -19,7 +19,7 @@ logger = get_logger(__name__)
 class EmbeddingDatabase:
     """Manages ChromaDB operations for embeddings."""
     
-    def __init__(self, database_path: Path):
+    def __init__(self, database_path: Path, collection_name: str):
         """
         Initialize ChromaDB client.
         
@@ -40,7 +40,7 @@ class EmbeddingDatabase:
             # Create collection without embedding function
             # (we provide embeddings manually)
             self.collection = self.client.get_or_create_collection(
-                name="embeddings",
+                name=collection_name,
                 metadata={"hnsw:space": "cosine"}
             )
             

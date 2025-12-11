@@ -1,5 +1,8 @@
 # ============================================================================
-# src/article_generator/__init__.py
+# src/article_generator/utils/__init__.py
 # ============================================================================
-"""Article Generator Package"""
-__version__ = "1.0.0"
+"""Utility functions package."""
+
+from .text_utils import slugify
+
+__all__ = ['slugify']

@@ -41,7 +41,7 @@ embedding:
 
 ## Input
 
-#### File Path
+### File Path
 `{scrape.url-scraped-content}/{FEED_DATE}/{category}/*.json`
 
 ## Example

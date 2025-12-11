@@ -117,7 +117,7 @@ def setup_logger(config: Dict[str, Any]) -> logging.Logger:
     return logger
 
 
-def log_function_call(logger: logging.Logger) -> Callable:
+def log_execution_time(logger: logging.Logger) -> Callable:
     """
     Decorator to log function calls with timing.
     

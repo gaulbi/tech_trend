@@ -34,8 +34,10 @@ embedding:
   max-retries: 3
   batch-size: 50  # Number of texts to embed in one API call
   database-path: data/embedding
-  ktop: 20
   log: log/embedding
+rag:
+  ktop: 20
+  collection-name: tech_trends  
 article-publisher:
   timeout: 60
   retry: 3
