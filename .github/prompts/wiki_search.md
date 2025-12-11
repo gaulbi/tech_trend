@@ -156,12 +156,11 @@ For each category → each trend → each keyword:
 ```
 1. Multi-level logging (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 2. Console output with colors for different levels
-3. Rotating file handler with 10MB limit keeping 5 backup files
-4. JSON formatting option for structured logging
-5. Function decorator to auto-log calls with timing
-6. Error logging helper that captures stack traces
-7. Configurable via environment variables or config file
-8. Include example usage showing:
+3. JSON formatting option for structured logging
+4. Function decorator to auto-log calls with timing
+5. Error logging helper that captures stack traces
+6. Configurable via environment variables or config file
+7. Include example usage showing:
    - Basic logging
    - Function tracing
    - Error handling with context
@@ -227,8 +226,6 @@ Before searching each category:
 ---
 
 ## Success Criteria
-
-- Automatically processes only today's date without manual date input
 - Searching, cleaning, and storing wiki content successfully for the given feed date's categories
 - Invalid search response don't stop execution
 - Idempotent: Running twice on same day produces same results
