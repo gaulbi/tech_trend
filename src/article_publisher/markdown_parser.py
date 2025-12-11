@@ -13,7 +13,7 @@ from .logger import log_error
 class MarkdownParser:
     """Parser for markdown article files."""
     
-    TITLE_PATTERN = re.compile(r'^\*\*\[EN\]\s*Title\*\*:\s*(.+)$', re.MULTILINE)
+    TITLE_PATTERN = re.compile(r'^##\s*Title\s*\n(.+)$', re.MULTILINE)
     MAX_TITLE_LENGTH = 250  # Hashnode typical limit
     
     @staticmethod

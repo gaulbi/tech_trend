@@ -14,3 +14,4 @@ data/
 log/
 build/
 TechTrand.egg-info/
+src/.DS_Store
