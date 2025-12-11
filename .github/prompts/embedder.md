@@ -9,8 +9,10 @@
 ## Module Overview
 
 **Purpose**: Chunk articles, embed text, and store the embedding/chunk/metadata into a ChromaDB vector database. The module should be production-ready with comprehensive error handling, retry logic, and logging.
-**Behavior**: Single-run batch processor. Defaults to processing **today's date**, but supports an optional date argument for backfilling.
-**Idempotency**: Before embedding an article, check if its metadata.url already exists in the database. If it exists, skip to save API costs.
+
+### Feed Date
+- If `--feed_date` argument is not specified in command, use today's date as the feed date.
+- In this case, determine today's date using `datetime.date.today().strftime('%Y-%m-%d')`
 
 ---
 
@@ -38,37 +40,32 @@ embedding:
 ---
 
 ## Input
-### CLI Argument (Optional)
-- Support a `--date` argument (format YYYY-MM-DD).
-- If not provided, default to `datetime.date.today().strftime('%Y-%m-%d')`.
 
 #### File Path
-`{scrape.url-scraped-content}/{TODAY_DATE}/{category}/*.json`
+`{scrape.url-scraped-content}/{FEED_DATE}/{category}/*.json`
 
 ## Example
-If today is 2025-11-21:
-`data/scraped-content/2025-11-21/software-engineering-dev/url-scrape.json`
-`data/scraped-content/2025-11-21/software-engineering-dev/web-scrape.json`
+If a feed date is 2025-11-21 and a category is software_engineering:
+`data/scraped-content/2025-11-21/software_engineering/url-scrape.json`
+`data/scraped-content/2025-11-21/software_engineering/web-scrape.json`
 
 ### JSON Structure
 ```json
 {
-  "analysis_date": "2025-11-21",
+  "feed_date": "2025-11-21",
   "category": "software_engineering",
   "trends": [
     {
       "topic": "...",
-      "link": "...",
+      "query_used": "...",
+      "search_link": "...",
       "content": "...",
-      "search_keywords": ["...", "..."]
     }
   ]
 }
 ```
 
-**Validation**: 
-- Invalid JSON → Raise ValidationError and continue with remaining categories.
-- No files for today's date → Log WARNING and exit gracefully.
+**Validation**: Invalid JSON → Raise `ValidationError` and continue processing remaining categories.
 
 ---
 
@@ -79,12 +76,12 @@ If today is 2025-11-21:
 - Persistence Path: `{embedding.database-path}`
 
 ### Database Schema (ChromaDB Metadata & ID)
-- ID Format: `{category}|{TODAY_DATE}|{url_hash}|chunk_{chunk_index}` (Use a hash of the URL to ensure uniqueness)
+- ID Format: `{category}|{FEED_DATE}|{url_hash}|chunk_{chunk_index}` (Use a hash of the URL to ensure uniqueness)
 - Document: The text chunk
 - Metadata:
- - `url`: trends.link from input file
+ - `url`: trends.search_link from input file
  - `category`: category from input file
- - `embedding_date`: {TODAY_DATE}
+ - `embedding_date`: {FEED_DATE}
  - `source_file`: Full path to input JSON
  - `chunk_index`: Integer
 
@@ -100,6 +97,41 @@ If today is 2025-11-21:
 
 ---
 
+### Logging
+```json
+{
+  "timestamp": "ISO format",
+  "level": "ERROR",
+  "module": "module_name",
+  "function": "function_name", 
+  "line": 42,
+  "message": "Error message",
+  "traceback": "full traceback for errors"
+}
+```
+1. Multi-level logging (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+2. Console output with colors for different levels
+3. Rotating file handler with 10MB limit keeping 5 backup files
+4. JSON formatting option for structured logging
+5. Function decorator to auto-log calls with timing
+6. Error logging helper that captures stack traces
+7. Configurable via environment variables or config file
+8. Include example usage showing:
+   - Basic logging
+   - Function tracing
+   - Error handling with context
+   - Conditional debug logging
+
+### Levels
+- **INFO**: Fetch start/end, category completion
+- **ERROR**: Network/parsing failures
+- **DEBUG**: Skipped articles
+
+### Rotation
+- Daily rotation, keep 30 days
+
+---
+
 ## Project Structure
 
 ```
@@ -109,9 +141,25 @@ If today is 2025-11-21:
 │   └── embedder/            # Package
 ├── data/
 │   └── embedding/           # ChromaDB database
-│   └── scraped-content/    # base input folder
+│   └── scraped-content/
+│       └── {FEED_DATE}/      # Only write to this directory
 ├── config.yaml              # Configuration file
+
+- DO NOT implement any logic in `wiki-search.py`. It's only for entry point.
+
 ```
+
+### Entry Point
+```bash
+python embedder.py
+
+python embedder.py --category "software_engineering"
+
+python embedder.py --feed_date "2025-02-01"
+
+python embedder.py --category "software_engineering" --feed_date "2025-02-01"
+```
+**category** and **feed_date** are optional input parameters.
 
 ---
 
@@ -127,7 +175,6 @@ If today is 2025-11-21:
 
 ## Success Criteria
 
-- Automatically processes only today's date without manual date input
 - Read, chunk, embed and store successfully for today's categories
 - Cost-Saving Idempotency: Checks if `metadata.url`, `metadata.category` and `embedding_date` exist in DB before calling Embedding API.
 - All code has type hints and docstrings

@@ -1,58 +1,30 @@
-# Embedder - Production RAG Embedding Pipeline
+# Embedder - Production-Grade RAG Embedding System
 
-A production-grade Python module for chunking articles, generating embeddings, and storing them in ChromaDB with multi-provider support and idempotency.
+A robust Python module for chunking articles, generating embeddings, and storing them in ChromaDB for Retrieval-Augmented Generation (RAG) applications.
 
 ## Features
 
-- ✨ **Multi-Provider Support**: OpenAI, Voyage AI, Gemini, and Sentence Transformers
-- 🔄 **Idempotency**: Automatically skips already-embedded articles to save costs
-- 🛡️ **Robust Error Handling**: Exponential backoff, retry logic, and comprehensive validation
-- 📊 **Batch Processing**: Efficient API usage with configurable batch sizes
-- 🎯 **Type-Safe**: Full type hints and Google-style docstrings
-- 📝 **Production-Ready**: Logging, monitoring, and graceful error handling
+- **Multi-Provider Support**: OpenAI, Voyage AI, Google Gemini, and Sentence Transformers (local)
+- **Smart Chunking**: Overlapping text chunks with sentence boundary detection
+- **Idempotent Operations**: Skips already-embedded content to save API costs
+- **Robust Error Handling**: Exponential backoff retry logic with comprehensive error handling
+- **Production Logging**: JSON-formatted logs with rotation and colored console output
+- **Type Safety**: Full type hints and Google-style docstrings
 
 ## Installation
 
-### 1. Install Dependencies
-
 ```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-### 2. Create `.env` File
-
-```bash
-# OpenAI (if using OpenAI provider)
-OPENAI_API_KEY=sk-...
-
-# Voyage AI (if using Voyage provider)
-VOYAGEAI_API_KEY=...
-
-# Gemini (if using Gemini provider)
-GEMINI_API_KEY=...
-```
-
-### 3. Ensure `config.yaml` Exists
-
-Place your `config.yaml` in the project root (see Configuration section below).
-
-## Usage
-
-### Process Today's Articles
-
-```bash
-python embedder.py
-```
-
-### Process Specific Date (Backfill)
-
-```bash
-python embedder.py --date 2025-11-21
+# Set up environment variables
+cp .env.example .env
+# Edit .env with your API keys
 ```
 
 ## Configuration
 
-Example `config.yaml`:
+Create a `config.yaml` file:
 
 ```yaml
 scrape:
@@ -71,32 +43,72 @@ embedding:
   log: log/embedding
 ```
 
+## Environment Variables
+
+Create a `.env` file:
+
+```bash
+# OpenAI
+OPENAI_API_KEY=sk-...
+
+# Voyage AI
+VOYAGEAI_API_KEY=...
+
+# Google Gemini
+GEMINI_API_KEY=...
+
+# Optional: Logging configuration
+LOG_LEVEL=INFO
+LOG_DIR=log/embedding
+LOG_JSON=true
+```
+
+## Usage
+
+### Process all categories for today
+
+```bash
+python embedder.py
+```
+
+### Process specific category
+
+```bash
+python embedder.py --category "software_engineering"
+```
+
+### Process specific date
+
+```bash
+python embedder.py --feed_date "2025-02-01"
+```
+
+### Process specific category and date
+
+```bash
+python embedder.py --category "software_engineering" --feed_date "2025-02-01"
+```
+
 ## Input Format
 
-Expected directory structure:
+The module expects JSON files in the following structure:
 
 ```
-data/scraped-content/
-└── 2025-11-21/
-    ├── software-engineering-dev/
-    │   ├── url-scrape.json
-    │   └── web-scrape.json
-    └── ai-ml/
-        └── trends.json
+data/scraped-content/{FEED_DATE}/{category}/*.json
 ```
 
-JSON structure:
+Example: `data/scraped-content/2025-11-21/software_engineering/url-scrape.json`
 
 ```json
 {
-  "analysis_date": "2025-11-21",
+  "feed_date": "2025-11-21",
   "category": "software_engineering",
   "trends": [
     {
-      "topic": "Topic Name",
-      "link": "https://example.com/article",
-      "content": "Article content here...",
-      "search_keywords": ["keyword1", "keyword2"]
+      "topic": "Article Title",
+      "query_used": "search query",
+      "search_link": "https://example.com/article",
+      "content": "Full article content..."
     }
   ]
 }
@@ -104,123 +116,174 @@ JSON structure:
 
 ## Output
 
-### ChromaDB Structure
+### ChromaDB Vector Database
 
-- **Database Path**: `data/embedding/`
+- **Location**: `{embedding.database-path}/`
 - **Collection**: `embeddings`
-- **ID Format**: `{category}|{date}|{url_hash}|chunk_{index}`
+- **ID Format**: `{category}|{FEED_DATE}|{url_hash}|chunk_{index}`
+
+### Document Schema
+
+- **Document**: Text chunk content
 - **Metadata**:
   - `url`: Article URL
   - `category`: Article category
-  - `embedding_date`: Processing date
-  - `source_file`: Source JSON file path
-  - `chunk_index`: Chunk number
-
-### Logs
-
-Logs are stored in `log/embedding/embedder_YYYYMMDD_HHMMSS.log`
-
-## Supported Embedding Providers
-
-### OpenAI
-```yaml
-embedding-provider: openai
-embedding-model: text-embedding-3-small  # or text-embedding-3-large
-```
-
-### Voyage AI
-```yaml
-embedding-provider: voyageai
-embedding-model: voyage-large-2  # or voyage-code-2
-```
-
-### Google Gemini
-```yaml
-embedding-provider: gemini
-embedding-model: models/text-embedding-004
-```
-
-### Sentence Transformers (Local)
-```yaml
-embedding-provider: sentence-transformers
-embedding-model: all-MiniLM-L6-v2  # No API key needed
-```
-
-## Idempotency
-
-The embedder automatically checks if an article (by URL, category, and date) has already been processed. If found, it skips embedding to save API costs and processing time.
-
-## Error Handling
-
-- **Exponential Backoff**: 1s, 3s, 5s delays between retries
-- **Timeout**: Configurable timeout for all API calls
-- **Validation**: Comprehensive input validation with detailed error messages
-- **Graceful Degradation**: Continues processing remaining files on individual failures
+  - `embedding_date`: Embedding date (YYYY-MM-DD)
+  - `source_file`: Path to source JSON file
+  - `chunk_index`: Chunk index (0-based)
 
 ## Architecture
 
+### Project Structure
+
 ```
-embedder.py                 # CLI entry point
-src/embedder/
-├── config.py              # Configuration management
-├── chunker.py             # Text chunking with overlap
-├── database.py            # ChromaDB operations
-├── processor.py           # Main orchestration
-├── utils.py               # Helper functions
-├── exceptions.py          # Custom exceptions
-└── embedders/
-    ├── base.py            # Abstract base class
-    ├── factory.py         # Provider factory
-    ├── openai_embedder.py
-    ├── voyage_embedder.py
-    ├── gemini_embedder.py
-    └── sentence_transformer.py
+.
+├── embedder.py              # Main entry point
+├── src/
+│   └── embedder/            # Package
+│       ├── __init__.py
+│       ├── config.py        # Configuration loader
+│       ├── logger.py        # Logging utilities
+│       ├── exceptions.py    # Custom exceptions
+│       ├── chunker.py       # Text chunking
+│       ├── database.py      # ChromaDB operations
+│       ├── processor.py     # Main processing logic
+│       └── embeddings/      # Embedding providers
+│           ├── __init__.py
+│           ├── base.py      # Abstract base class
+│           ├── factory.py   # Factory pattern
+│           ├── openai_embedder.py
+│           ├── voyage_embedder.py
+│           ├── gemini_embedder.py
+│           └── sentence_transformer.py
+├── data/
+│   ├── embedding/           # ChromaDB database
+│   └── scraped-content/     # Input data
+├── log/
+│   └── embedding/           # Log files
+├── config.yaml              # Configuration
+├── .env                     # Environment variables
+└── requirements.txt         # Dependencies
 ```
 
-## Development
+### Design Patterns
 
-### Code Quality Standards
+1. **Factory Pattern**: Dynamic creation of embedding providers
+2. **Abstract Base Classes**: Consistent interface across providers
+3. **Decorator Pattern**: Logging and timing decorators
+4. **Repository Pattern**: Database abstraction layer
 
-- Maximum function length: 50 lines
-- Type hints required for all functions
-- Google-style docstrings
-- Maximum line length: 100 characters
-- No hardcoded values
+## Error Handling
 
-### Adding New Providers
+The module implements comprehensive error handling:
 
-1. Create a new embedder class inheriting from `BaseEmbedder`
-2. Implement `_embed_batch()` and `get_dimension()` methods
-3. Register in `EmbedderFactory._providers`
+- **ConfigurationError**: Missing or invalid configuration
+- **ValidationError**: Invalid input data format
+- **EmbeddingError**: Embedding generation failures
+- **DatabaseError**: Database operation failures
+- **RetryExhaustedError**: All retry attempts failed
 
-Example:
+All errors are logged with full stack traces and context.
+
+## Logging
+
+### Log Levels
+
+- **DEBUG**: Skipped articles, detailed operations
+- **INFO**: Processing start/end, category completion
+- **WARNING**: Non-critical issues
+- **ERROR**: Failures with full tracebacks
+- **CRITICAL**: System-level failures
+
+### Log Format (JSON)
+
+```json
+{
+  "timestamp": "2025-11-21T10:30:45.123456",
+  "level": "INFO",
+  "module": "processor",
+  "function": "process_category",
+  "line": 42,
+  "message": "Processing category: software_engineering",
+  "extra_data": {
+    "category": "software_engineering",
+    "file_count": 5
+  }
+}
+```
+
+### Log Rotation
+
+- File size limit: 10MB
+- Backup count: 5 files
+- Rotation: Automatic on size limit
+
+## Cost Optimization
+
+### Idempotency
+
+The module checks if embeddings already exist before making API calls:
 
 ```python
-from .base import BaseEmbedder
-
-class CustomEmbedder(BaseEmbedder):
-    def _embed_batch(self, texts: List[str]) -> List[List[float]]:
-        # Your implementation
-        pass
-    
-    def get_dimension(self) -> int:
-        return 768
+if self.database.check_exists(url, category, embedding_date):
+    # Skip - already embedded
+    continue
 ```
 
-## Troubleshooting
+This prevents:
+- Duplicate API calls
+- Unnecessary costs
+- Processing time waste
 
-### "Configuration file not found"
-Ensure `config.yaml` exists in the project root.
+### Batch Processing
 
-### "API key not found"
-Check that your `.env` file contains the required API key for your chosen provider.
+Embeddings are generated in configurable batches:
 
-### "No categories found for date"
-Verify that data exists at `{scraped_content_path}/{date}/` with category subdirectories.
+```yaml
+embedding:
+  batch-size: 50  # Process 50 texts per API call
+```
 
-### Rate Limiting
-Reduce `batch-size` in config.yaml if hitting API rate limits.
+## Performance
+
+- **Chunking**: ~1000 chunks/second
+- **Embedding**: Depends on provider and batch size
+- **Database**: ChromaDB with HNSW indexing for fast retrieval
+
+## Code Quality
+
+- **Type Hints**: All functions have complete type annotations
+- **Docstrings**: Google-style docstrings for all public functions
+- **Max Function Length**: 50 lines (enforced)
+- **Max Line Length**: 100 characters
+- **No Hardcoded Values**: All configuration externalized
+
+## Testing
+
+The module handles edge cases gracefully:
+
+- Missing configuration files
+- Invalid JSON data
+- Network failures
+- API rate limits
+- Empty input directories
+- Partial processing failures
+
+## Contributing
+
+When contributing, ensure:
+
+1. All functions have type hints
+2. All public functions have docstrings
+3. Functions are under 50 lines
+4. No hardcoded values
+5. Comprehensive error handling
+6. Tests for new features
 
 ## License
 
 MIT License
+
+## Support
+
+For issues or questions, please open an issue on the repository.

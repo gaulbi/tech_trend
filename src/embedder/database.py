@@ -1,153 +1,209 @@
-"""ChromaDB database operations with idempotency checks."""
+"""
+ChromaDB database operations.
+"""
 
-import logging
+import hashlib
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import chromadb
 from chromadb.config import Settings
 
 from .exceptions import DatabaseError
+from .logger import get_logger
 
-logger = logging.getLogger(__name__)
+
+logger = get_logger(__name__)
 
 
-class ChromaDatabase:
-    """ChromaDB wrapper with idempotency support."""
-
-    def __init__(self, database_path: str, collection_name: str) -> None:
+class EmbeddingDatabase:
+    """Manages ChromaDB operations for embeddings."""
+    
+    def __init__(self, database_path: Path):
         """
         Initialize ChromaDB client.
-
+        
         Args:
-            database_path: Path to ChromaDB storage directory.
-            collection_name: Name of the ChromaDB collection.
-
+            database_path: Path to ChromaDB persistence directory
+            
         Raises:
-            DatabaseError: If initialization fails.
+            DatabaseError: If database initialization fails
         """
         try:
-            Path(database_path).mkdir(parents=True, exist_ok=True)
-
+            database_path.mkdir(parents=True, exist_ok=True)
+            
             self.client = chromadb.PersistentClient(
-                path=database_path,
-                settings=Settings(anonymized_telemetry=False),
+                path=str(database_path),
+                settings=Settings(anonymized_telemetry=False)
             )
-
+            
+            # Create collection without embedding function
+            # (we provide embeddings manually)
             self.collection = self.client.get_or_create_collection(
-                name=collection_name,
-                metadata={"hnsw:space": "cosine"},
+                name="embeddings",
+                metadata={"hnsw:space": "cosine"}
             )
-
-            logger.info(f"Connected to ChromaDB at {database_path}, collection: {collection_name}")
-        except Exception as e:
-            raise DatabaseError(
-                f"Failed to initialize ChromaDB: {e}"
-            ) from e
-
-    def url_exists(
-        self, url: str, category: str, embedding_date: str
-    ) -> bool:
-        """
-        Check if URL already exists in database.
-
-        Args:
-            url: Article URL to check.
-            category: Article category.
-            embedding_date: Target date for embeddings.
-
-        Returns:
-            True if URL exists for this date/category combination.
-        """
-        try:
-            results = self.collection.get(
-                where={
-                    "$and": [
-                        {"url": url},
-                        {"category": category},
-                        {"embedding_date": embedding_date},
-                    ]
-                },
-                limit=1,
-            )
-            return len(results["ids"]) > 0
-        except Exception as e:
-            logger.warning(f"Error checking URL existence: {e}")
-            return False
-
-    def add_chunks(
-        self,
-        ids: List[str],
-        documents: List[str],
-        embeddings: List[List[float]],
-        metadatas: List[Dict[str, str]],
-    ) -> None:
-        """
-        Add document chunks to database.
-
-        Args:
-            ids: List of unique chunk IDs.
-            documents: List of text chunks.
-            embeddings: List of embedding vectors.
-            metadatas: List of metadata dictionaries.
-
-        Raises:
-            DatabaseError: If insertion fails.
-        """
-        if not ids:
-            return
-
-        try:
-            self.collection.add(
-                ids=ids,
-                documents=documents,
-                embeddings=embeddings,
-                metadatas=metadatas,
-            )
-            logger.debug(f"Added {len(ids)} chunks to database")
-        except Exception as e:
-            raise DatabaseError(f"Failed to add chunks: {e}") from e
-
-    def get_existing_urls(
-        self, category: str, embedding_date: str
-    ) -> Set[str]:
-        """
-        Get all URLs already processed for a category and date.
-
-        Args:
-            category: Article category.
-            embedding_date: Target date.
-
-        Returns:
-            Set of URLs already in database.
-        """
-        try:
-            results = self.collection.get(
-                where={
-                    "$and": [
-                        {"category": category},
-                        {"embedding_date": embedding_date},
-                    ]
+            
+            logger.info(
+                f"Database initialized at {database_path}",
+                extra={
+                    'extra_data': {
+                        'collection_count': self.collection.count()
+                    }
                 }
             )
-
-            urls = set()
-            if results and results["metadatas"]:
-                urls = {meta["url"] for meta in results["metadatas"]}
-
-            return urls
+            
         except Exception as e:
-            logger.warning(f"Error fetching existing URLs: {e}")
-            return set()
-
-    def get_collection_count(self) -> int:
+            raise DatabaseError(f"Failed to initialize database: {e}")
+    
+    def check_exists(
+        self,
+        url: str,
+        category: str,
+        embedding_date: str
+    ) -> bool:
         """
-        Get total number of documents in collection.
-
+        Check if embeddings exist for given URL, category, and date.
+        
+        Args:
+            url: Article URL
+            category: Article category
+            embedding_date: Embedding date
+            
         Returns:
-            Document count.
+            True if embeddings exist, False otherwise
         """
         try:
-            return self.collection.count()
-        except Exception:
-            return 0
+            # FIXED: Must use $and with explicit $eq operators
+            # for multiple conditions in ChromaDB
+            results = self.collection.get(
+                where={
+                    "$and": [
+                        {"url": {"$eq": url}},
+                        {"category": {"$eq": category}},
+                        {"embedding_date": {"$eq": embedding_date}}
+                    ]
+                },
+                limit=1
+            )
+            
+            exists = len(results['ids']) > 0
+            
+            if exists:
+                logger.debug(
+                    f"Embeddings exist for URL: {url[:50]}...",
+                    extra={
+                        'extra_data': {
+                            'url': url,
+                            'category': category,
+                            'embedding_date': embedding_date
+                        }
+                    }
+                )
+            
+            return exists
+            
+        except Exception as e:
+            logger.warning(f"Error checking existence: {e}")
+            return False
+    
+    def add_embeddings(
+        self,
+        chunks: List[str],
+        embeddings: List[List[float]],
+        metadata: Dict[str, Any]
+    ) -> None:
+        """
+        Add embeddings to the database.
+        
+        Args:
+            chunks: List of text chunks
+            embeddings: List of embedding vectors
+            metadata: Metadata for the embeddings
+            
+        Raises:
+            DatabaseError: If insertion fails
+        """
+        if len(chunks) != len(embeddings):
+            raise DatabaseError(
+                f"Chunk count ({len(chunks)}) != "
+                f"embedding count ({len(embeddings)})"
+            )
+        
+        try:
+            # Generate unique IDs
+            url_hash = self._hash_url(metadata['url'])
+            ids = [
+                f"{metadata['category']}|{metadata['embedding_date']}|"
+                f"{url_hash}|chunk_{i}"
+                for i in range(len(chunks))
+            ]
+            
+            # Create metadata for each chunk
+            # Note: ChromaDB metadata only supports str, int, float, bool
+            metadatas = [
+                {
+                    'url': str(metadata['url']),
+                    'category': str(metadata['category']),
+                    'embedding_date': str(metadata['embedding_date']),
+                    'source_file': str(metadata['source_file']),
+                    'chunk_index': int(i)
+                }
+                for i in range(len(chunks))
+            ]
+            
+            # Add to database with explicit embeddings
+            self.collection.add(
+                ids=ids,
+                documents=chunks,
+                embeddings=embeddings,
+                metadatas=metadatas
+            )
+            
+            logger.debug(
+                f"Added {len(chunks)} chunks to database",
+                extra={
+                    'extra_data': {
+                        'url': metadata['url'][:50],
+                        'chunk_count': len(chunks)
+                    }
+                }
+            )
+            
+        except Exception as e:
+            raise DatabaseError(f"Failed to add embeddings: {e}")
+    
+    def get_stats(self) -> Dict[str, int]:
+        """
+        Get database statistics.
+        
+        Returns:
+            Dictionary with statistics
+        """
+        try:
+            total_count = self.collection.count()
+            
+            return {
+                'total_embeddings': total_count,
+                'collection_name': self.collection.name
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting stats: {e}")
+            return {
+                'total_embeddings': 0,
+                'collection_name': 'unknown'
+            }
+    
+    @staticmethod
+    def _hash_url(url: str) -> str:
+        """
+        Generate a hash for a URL.
+        
+        Args:
+            url: URL to hash
+            
+        Returns:
+            Hexadecimal hash string
+        """
+        return hashlib.md5(url.encode()).hexdigest()[:16]

@@ -1,243 +1,379 @@
-"""Main processing orchestration for embedding pipeline."""
+"""
+Main processing logic for embedding pipeline.
+"""
 
-import logging
+import json
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List, Tuple
 
 from .chunker import TextChunker
-from .config import Config
-from .database import ChromaDatabase
-from .embedders.factory import EmbedderFactory
+from .config import get_database_path, get_scrape_path
+from .database import EmbeddingDatabase
+from .embeddings.factory import EmbedderFactory
 from .exceptions import ValidationError
-from .utils import (
-    batch_list,
-    find_category_directories,
-    hash_url,
-    load_json_file,
-    validate_trend_item,
-)
+from .logger import get_logger, log_execution_time
 
-logger = logging.getLogger(__name__)
+
+logger = get_logger(__name__)
 
 
 class EmbeddingProcessor:
-    """Orchestrates the embedding pipeline."""
-
-    def __init__(self, config: Config, target_date: str) -> None:
+    """Processes scraped articles and generates embeddings."""
+    
+    def __init__(self, config: Dict[str, Any], feed_date: str):
         """
-        Initialize embedding processor.
-
+        Initialize the embedding processor.
+        
         Args:
-            config: Configuration object.
-            target_date: Date to process in YYYY-MM-DD format.
+            config: Configuration dictionary
+            feed_date: Feed date in YYYY-MM-DD format
         """
         self.config = config
-        self.target_date = target_date
-
+        self.feed_date = feed_date
+        
         # Initialize components
         self.chunker = TextChunker(
-            chunk_size=config.chunk_size,
-            chunk_overlap=config.chunk_overlap,
+            chunk_size=config['embedding']['chunk-size'],
+            chunk_overlap=config['embedding']['chunk-overlap']
         )
-
-        self.embedder = EmbedderFactory.create(
-            provider=config.embedding_provider,
-            model=config.embedding_model,
-            timeout=config.timeout,
-            max_retries=config.max_retries,
+        
+        self.embedder = EmbedderFactory.create(config)
+        
+        self.database = EmbeddingDatabase(
+            get_database_path(config)
         )
-
-        self.database = ChromaDatabase(config.database_path, config.collection_name)
-
+        
+        self.batch_size = config['embedding']['batch-size']
+        
         logger.info(
-            f"Initialized processor with {config.embedding_provider} "
-            f"model {config.embedding_model}"
+            f"Processor initialized",
+            extra={
+                'extra_data': {
+                    'feed_date': feed_date,
+                    'embedding_provider': config['embedding'][
+                        'embedding-provider'
+                    ],
+                    'embedding_model': config['embedding'][
+                        'embedding-model'
+                    ]
+                }
+            }
         )
-
-    def process(self) -> Dict[str, int]:
-        """
-        Process all categories for the target date.
-
-        Returns:
-            Dictionary with success, skipped, and failed counts.
-        """
-        base_path = Path(self.config.scraped_content_path)
-        categories = find_category_directories(base_path, self.target_date)
-
+    
+    @log_execution_time
+    def process_all_categories(self) -> None:
+        """Process all categories found in the scrape directory."""
+        scrape_path = get_scrape_path(self.config, self.feed_date)
+        
+        if not scrape_path.exists():
+            logger.warning(
+                f"No data found for date: {self.feed_date}",
+                extra={'extra_data': {'path': str(scrape_path)}}
+            )
+            return
+        
+        categories = [
+            d.name for d in scrape_path.iterdir() if d.is_dir()
+        ]
+        
         if not categories:
             logger.warning(
-                f"No categories found for date {self.target_date}"
+                f"No categories found in {scrape_path}",
+                extra={'extra_data': {'path': str(scrape_path)}}
             )
-            return {"success": 0, "skipped": 0, "failed": 0}
-
-        logger.info(f"Found {len(categories)} categories to process")
-
-        stats = {"success": 0, "skipped": 0, "failed": 0}
-
-        for category_dir in categories:
-            category_stats = self._process_category(category_dir)
-            for key in stats:
-                stats[key] += category_stats[key]
-
-        return stats
-
-    def _process_category(self, category_dir: Path) -> Dict[str, int]:
-        """
-        Process all JSON files in a category directory.
-
-        Args:
-            category_dir: Path to category directory.
-
-        Returns:
-            Processing statistics.
-        """
-        category_name = category_dir.name
-        logger.info(f"Processing category: {category_name}")
-
-        stats = {"success": 0, "skipped": 0, "failed": 0}
-        json_files = list(category_dir.glob("*.json"))
-
-        if not json_files:
-            logger.warning(f"No JSON files in {category_dir}")
-            return stats
-
-        for json_file in json_files:
-            file_stats = self._process_file(json_file, category_name)
-            for key in stats:
-                stats[key] += file_stats[key]
-
+            return
+        
         logger.info(
-            f"Category {category_name} complete: "
-            f"Success={stats['success']}, "
-            f"Skipped={stats['skipped']}, "
-            f"Failed={stats['failed']}"
+            f"Found {len(categories)} categories to process",
+            extra={'extra_data': {'categories': categories}}
         )
-
-        return stats
-
+        
+        for category in categories:
+            try:
+                self.process_category(category)
+            except Exception as e:
+                logger.error(
+                    f"Failed to process category {category}: {e}",
+                    exc_info=True
+                )
+        
+        # Log final database stats
+        stats = self.database.get_stats()
+        logger.info(
+            "All categories processed",
+            extra={'extra_data': stats}
+        )
+    
+    @log_execution_time
+    def process_category(self, category: str) -> None:
+        """
+        Process a single category.
+        
+        Args:
+            category: Category name to process
+        """
+        logger.info(f"Processing category: {category}")
+        
+        scrape_path = get_scrape_path(self.config, self.feed_date)
+        category_path = scrape_path / category
+        
+        if not category_path.exists():
+            logger.warning(f"Category path does not exist: {category_path}")
+            return
+        
+        # Find all JSON files
+        json_files = list(category_path.glob("*.json"))
+        
+        if not json_files:
+            logger.warning(
+                f"No JSON files found in {category_path}",
+                extra={'extra_data': {'path': str(category_path)}}
+            )
+            return
+        
+        logger.info(
+            f"Found {len(json_files)} JSON files in {category}",
+            extra={
+                'extra_data': {
+                    'category': category,
+                    'file_count': len(json_files)
+                }
+            }
+        )
+        
+        total_processed = 0
+        total_skipped = 0
+        
+        for json_file in json_files:
+            try:
+                processed, skipped = self._process_file(
+                    json_file,
+                    category
+                )
+                total_processed += processed
+                total_skipped += skipped
+            except ValidationError as e:
+                logger.error(
+                    f"Validation error in {json_file.name}: {e}"
+                )
+            except Exception as e:
+                logger.error(
+                    f"Error processing {json_file.name}: {e}",
+                    exc_info=True
+                )
+        
+        logger.info(
+            f"Category {category} complete: "
+            f"{total_processed} processed, {total_skipped} skipped",
+            extra={
+                'extra_data': {
+                    'category': category,
+                    'processed': total_processed,
+                    'skipped': total_skipped
+                }
+            }
+        )
+    
     def _process_file(
-        self, file_path: Path, category: str
-    ) -> Dict[str, int]:
+        self,
+        file_path: Path,
+        category: str
+    ) -> Tuple[int, int]:
         """
         Process a single JSON file.
-
+        
         Args:
-            file_path: Path to JSON file.
-            category: Category name.
-
+            file_path: Path to JSON file
+            category: Category name
+            
         Returns:
-            Processing statistics.
+            Tuple of (processed_count, skipped_count)
         """
-        stats = {"success": 0, "skipped": 0, "failed": 0}
-
         try:
-            data = load_json_file(file_path)
-        except ValidationError as e:
-            logger.error(f"Validation error in {file_path}: {e}")
-            stats["failed"] += 1
-            return stats
-
-        for trend in data["trends"]:
-            if not validate_trend_item(trend, file_path):
-                stats["failed"] += 1
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        except json.JSONDecodeError as e:
+            raise ValidationError(f"Invalid JSON: {e}")
+        except Exception as e:
+            raise ValidationError(f"Error reading file: {e}")
+        
+        # Validate structure
+        if 'trends' not in data:
+            raise ValidationError("Missing 'trends' field in JSON")
+        
+        if not isinstance(data['trends'], list):
+            raise ValidationError("'trends' must be a list")
+        
+        processed = 0
+        skipped = 0
+        
+        for idx, trend in enumerate(data['trends']):
+            # Validate trend is a dictionary
+            if not isinstance(trend, dict):
+                logger.warning(
+                    f"Skipping non-dict trend at index {idx}",
+                    extra={'extra_data': {'file': str(file_path)}}
+                )
                 continue
-
-            url = trend["link"]
-
-            # Check idempotency
-            if self.database.url_exists(
-                url, category, self.target_date
-            ):
-                logger.debug(f"Skipping existing URL: {url}")
-                stats["skipped"] += 1
-                continue
-
-            # Process the article
+            
             try:
-                self._process_article(trend, category, file_path)
-                stats["success"] += 1
+                # Validate required fields
+                self._validate_trend(trend)
+                
+                # Check if already embedded (idempotency)
+                url = trend['search_link']
+                
+                if self.database.check_exists(
+                    url,
+                    category,
+                    self.feed_date
+                ):
+                    logger.debug(
+                        f"Skipping existing: {url[:50]}...",
+                        extra={
+                            'extra_data': {
+                                'url': url,
+                                'category': category
+                            }
+                        }
+                    )
+                    skipped += 1
+                    continue
+                
+                # Process new trend
+                if self._process_trend(trend, category, str(file_path)):
+                    processed += 1
+                
+            except ValidationError as e:
+                logger.warning(
+                    f"Validation error in trend: {e}",
+                    extra={'extra_data': {'trend_index': idx}}
+                )
             except Exception as e:
-                logger.error(f"Failed to process {url}: {e}")
-                stats["failed"] += 1
-
-        return stats
-
-    def _process_article(
-        self, trend: Dict, category: str, source_file: Path
-    ) -> None:
+                logger.error(
+                    f"Error processing trend: {e}",
+                    extra={
+                        'extra_data': {
+                            'trend': trend.get('topic', 'N/A'),
+                            'trend_index': idx
+                        }
+                    }
+                )
+        
+        return processed, skipped
+    
+    def _validate_trend(self, trend: Dict[str, Any]) -> None:
         """
-        Process a single article: chunk, embed, and store.
-
+        Validate trend structure and required fields.
+        
         Args:
-            trend: Trend data dictionary.
-            category: Category name.
-            source_file: Source JSON file path.
+            trend: Trend dictionary to validate
+            
+        Raises:
+            ValidationError: If validation fails
         """
-        url = trend["link"]
-        content = trend["content"]
-
-        # Chunk the content
-        chunks = self.chunker.chunk(content)
-        if not chunks:
-            logger.warning(f"No chunks generated for {url}")
-            return
-
-        # Process in batches
-        batch_size = self.config.batch_size
-        for batch_idx, chunk_batch in enumerate(
-            batch_list(chunks, batch_size)
-        ):
-            self._process_chunk_batch(
-                chunk_batch, batch_idx, url, category, source_file
-            )
-
-        logger.info(
-            f"Processed {len(chunks)} chunks for {url}"
-        )
-
-    def _process_chunk_batch(
+        required_fields = {
+            'topic': str,
+            'query_used': str,
+            'search_link': str,
+            'content': str
+        }
+        
+        for field, expected_type in required_fields.items():
+            if field not in trend:
+                raise ValidationError(f"Missing required field: '{field}'")
+            
+            if not isinstance(trend[field], expected_type):
+                raise ValidationError(
+                    f"Field '{field}' must be {expected_type.__name__}, "
+                    f"got {type(trend[field]).__name__}"
+                )
+            
+            # Check for empty strings
+            if expected_type == str and not trend[field].strip():
+                raise ValidationError(
+                    f"Field '{field}' cannot be empty or whitespace"
+                )
+    
+    def _process_trend(
         self,
-        chunks: List[str],
-        batch_start_idx: int,
-        url: str,
+        trend: Dict[str, Any],
         category: str,
-        source_file: Path,
-    ) -> None:
+        source_file: str
+    ) -> bool:
         """
-        Process a batch of chunks: embed and store.
-
+        Process a single trend: chunk, embed, and store.
+        
         Args:
-            chunks: List of text chunks.
-            batch_start_idx: Starting index for this batch.
-            url: Article URL.
-            category: Category name.
-            source_file: Source file path.
+            trend: Trend dictionary
+            category: Category name
+            source_file: Source file path
+            
+        Returns:
+            True if successful, False otherwise
         """
-        # Generate embeddings
-        embeddings = self.embedder.embed(chunks)
-
-        # Prepare data for database
-        url_hash = hash_url(url)
-        batch_size = self.config.batch_size
-
-        ids = []
-        metadatas = []
-        for i, chunk in enumerate(chunks):
-            chunk_idx = batch_start_idx * batch_size + i
-            chunk_id = (
-                f"{category}|{self.target_date}|"
-                f"{url_hash}|chunk_{chunk_idx}"
+        content = trend['content'].strip()
+        url = trend['search_link'].strip()
+        
+        # Chunk text
+        chunks = self.chunker.chunk_text(content)
+        
+        if not chunks:
+            logger.debug("Skipping trend: no chunks generated")
+            return False
+        
+        # Generate embeddings in batches
+        all_embeddings = []
+        
+        for i in range(0, len(chunks), self.batch_size):
+            batch = chunks[i:i + self.batch_size]
+            
+            try:
+                embeddings = self.embedder.embed_with_retry(batch)
+                all_embeddings.extend(embeddings)
+            except Exception as e:
+                logger.error(
+                    f"Failed to generate embeddings: {e}",
+                    extra={'extra_data': {'url': url}}
+                )
+                return False
+        
+        # Verify we got all embeddings
+        if len(all_embeddings) != len(chunks):
+            logger.error(
+                f"Embedding count mismatch: "
+                f"{len(all_embeddings)} != {len(chunks)}",
+                extra={'extra_data': {'url': url}}
             )
-            ids.append(chunk_id)
-
-            metadata = {
-                "url": url,
-                "category": category,
-                "embedding_date": self.target_date,
-                "source_file": str(source_file),
-                "chunk_index": str(chunk_idx),
-            }
-            metadatas.append(metadata)
-
+            return False
+        
         # Store in database
-        self.database.add_chunks(ids, chunks, embeddings, metadatas)
+        metadata = {
+            'url': url,
+            'category': category,
+            'embedding_date': self.feed_date,
+            'source_file': source_file
+        }
+        
+        try:
+            self.database.add_embeddings(chunks, all_embeddings, metadata)
+            
+            logger.info(
+                f"Embedded article: {trend['topic'][:50]}",
+                extra={
+                    'extra_data': {
+                        'url': url[:50],
+                        'chunk_count': len(chunks),
+                        'category': category
+                    }
+                }
+            )
+            
+            return True
+            
+        except Exception as e:
+            logger.error(
+                f"Failed to store embeddings: {e}",
+                extra={'extra_data': {'url': url}}
+            )
+            return False

@@ -1,86 +1,91 @@
-"""Text chunking with overlap for RAG applications."""
+"""
+Text chunking functionality.
+"""
 
 from typing import List
 
 
 class TextChunker:
-    """Chunks text into overlapping segments."""
-
-    def __init__(self, chunk_size: int, chunk_overlap: int) -> None:
+    """Handles text chunking with overlap."""
+    
+    def __init__(self, chunk_size: int, chunk_overlap: int):
         """
         Initialize text chunker.
-
+        
         Args:
-            chunk_size: Maximum characters per chunk.
-            chunk_overlap: Number of overlapping characters.
-
-        Raises:
-            ValueError: If parameters are invalid.
+            chunk_size: Maximum characters per chunk
+            chunk_overlap: Number of overlapping characters between chunks
         """
-        if chunk_size <= 0:
-            raise ValueError("chunk_size must be positive")
-        if chunk_overlap < 0:
-            raise ValueError("chunk_overlap cannot be negative")
-        if chunk_overlap >= chunk_size:
-            raise ValueError("chunk_overlap must be less than chunk_size")
-
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
-
-    def chunk(self, text: str) -> List[str]:
+        
+        if chunk_overlap >= chunk_size:
+            raise ValueError(
+                "chunk_overlap must be less than chunk_size"
+            )
+    
+    def chunk_text(self, text: str) -> List[str]:
         """
         Split text into overlapping chunks.
-
+        
         Args:
-            text: Input text to chunk.
-
+            text: Text to chunk
+            
         Returns:
-            List of text chunks.
+            List of text chunks
         """
+        # Handle empty or whitespace-only text
         if not text or not text.strip():
             return []
-
+        
+        # Strip and normalize whitespace
         text = text.strip()
+        
+        # If text fits in one chunk, return it
+        if len(text) <= self.chunk_size:
+            return [text]
+        
         chunks = []
         start = 0
-
-        while start < len(text):
+        text_length = len(text)
+        
+        while start < text_length:
             end = start + self.chunk_size
+            
+            # Get the chunk
             chunk = text[start:end]
-
-            # Try to break at sentence boundary if possible
-            if end < len(text):
-                chunk = self._break_at_sentence(chunk, text[end:])
-
-            chunks.append(chunk.strip())
-
+            
+            # Try to break at sentence boundary if not at the end
+            if end < text_length:
+                # Look for sentence ending punctuation
+                last_period = chunk.rfind('. ')
+                last_newline = chunk.rfind('\n')
+                last_question = chunk.rfind('? ')
+                last_exclamation = chunk.rfind('! ')
+                
+                break_point = max(
+                    last_period,
+                    last_newline,
+                    last_question,
+                    last_exclamation
+                )
+                
+                # If we found a good break point, use it
+                # Only break if it's past the halfway point to avoid tiny chunks
+                if break_point > self.chunk_size // 2:
+                    chunk = chunk[:break_point + 1].strip()
+                    end = start + break_point + 1
+            
+            # Add non-empty chunk
+            chunk_stripped = chunk.strip()
+            if chunk_stripped:
+                chunks.append(chunk_stripped)
+            
             # Move start position with overlap
             start = end - self.chunk_overlap
-
-            # Prevent infinite loop if chunk_overlap equals chunk_size
-            if start <= chunks[-1].find(chunks[-1][:50]):
+            
+            # Prevent infinite loop: ensure we always move forward
+            if start <= len(''.join(chunks)):
                 start = end
-
-        return [c for c in chunks if c]
-
-    def _break_at_sentence(self, chunk: str, next_text: str) -> str:
-        """
-        Attempt to break chunk at sentence boundary.
-
-        Args:
-            chunk: Current chunk text.
-            next_text: Text following the chunk.
-
-        Returns:
-            Adjusted chunk text.
-        """
-        sentence_endings = [".", "!", "?", "\n"]
-
-        # Look for sentence ending in last 100 characters
-        for i in range(len(chunk) - 1, max(0, len(chunk) - 100), -1):
-            if chunk[i] in sentence_endings:
-                # Check if next character is space or end
-                if i == len(chunk) - 1 or chunk[i + 1].isspace():
-                    return chunk[: i + 1]
-
-        return chunk
+        
+        return chunks

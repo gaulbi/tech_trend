@@ -1,156 +1,107 @@
-"""Configuration loader and validator for the embedder module."""
+"""
+Configuration loader and validator.
+"""
 
 from pathlib import Path
 from typing import Any, Dict
 
 import yaml
+from dotenv import load_dotenv
 
 from .exceptions import ConfigurationError
 
 
-class Config:
-    """Configuration container with validation."""
-
-    def __init__(self, config_dict: Dict[str, Any]) -> None:
-        """
-        Initialize configuration.
-
-        Args:
-            config_dict: Raw configuration dictionary from YAML.
-
-        Raises:
-            ConfigurationError: If required fields are missing.
-        """
-        self._validate(config_dict)
-        self._config = config_dict
-
-    def _validate(self, config: Dict[str, Any]) -> None:
-        """
-        Validate configuration structure.
-
-        Args:
-            config: Configuration dictionary to validate.
-
-        Raises:
-            ConfigurationError: If validation fails.
-        """
-        required_sections = ["scrape", "embedding"]
-        for section in required_sections:
-            if section not in config:
-                raise ConfigurationError(
-                    f"Missing required section: {section}"
-                )
-
-        # Validate scrape section
-        if "url-scraped-content" not in config["scrape"]:
-            raise ConfigurationError(
-                "Missing 'url-scraped-content' in scrape section"
-            )
-
-        # Validate embedding section
-        required_embedding = [
-            "chunk-size",
-            "chunk-overlap",
-            "embedding-provider",
-            "embedding-model",
-            "database-path",
-        ]
-        for field in required_embedding:
-            if field not in config["embedding"]:
-                raise ConfigurationError(
-                    f"Missing '{field}' in embedding section"
-                )
-
-    @property
-    def scraped_content_path(self) -> str:
-        """Get path to scraped content directory."""
-        return self._config["scrape"]["url-scraped-content"]
-
-    @property
-    def chunk_size(self) -> int:
-        """Get chunk size for text splitting."""
-        return self._config["embedding"]["chunk-size"]
-
-    @property
-    def chunk_overlap(self) -> int:
-        """Get chunk overlap size."""
-        return self._config["embedding"]["chunk-overlap"]
-
-    @property
-    def embedding_provider(self) -> str:
-        """Get embedding provider name."""
-        return self._config["embedding"]["embedding-provider"]
-
-    @property
-    def embedding_model(self) -> str:
-        """Get embedding model name."""
-        return self._config["embedding"]["embedding-model"]
-
-    @property
-    def timeout(self) -> int:
-        """Get API timeout in seconds."""
-        return self._config["embedding"].get("timeout", 60)
-
-    @property
-    def max_retries(self) -> int:
-        """Get maximum number of retries."""
-        return self._config["embedding"].get("max-retries", 3)
-
-    @property
-    def batch_size(self) -> int:
-        """Get batch size for embedding API calls."""
-        return self._config["embedding"].get("batch-size", 50)
-
-    @property
-    def database_path(self) -> str:
-        """Get path to ChromaDB database."""
-        return self._config["embedding"]["database-path"]
-
-    @property
-    def ktop(self) -> int:
-        """Get number of top results to return."""
-        return self._config["embedding"].get("ktop", 20)
-
-    @property
-    def log_path(self) -> str:
-        """Get path to log directory."""
-        return self._config["embedding"].get("log", "log/embedding")
-
-    @property
-    def collection_name(self) -> str:
-        """Get collection name for embeddings."""
-        return self._config["embedding"].get("collection-name", "tech_trends")
-
-
-def load_config(config_path: str = "config.yaml") -> Config:
+def load_config(config_path: str = "config.yaml") -> Dict[str, Any]:
     """
     Load and validate configuration from YAML file.
-
+    
     Args:
-        config_path: Path to configuration file.
-
+        config_path: Path to configuration file
+        
     Returns:
-        Validated Config object.
-
+        Configuration dictionary
+        
     Raises:
-        ConfigurationError: If file doesn't exist or is invalid.
+        ConfigurationError: If config file is missing or invalid
     """
     config_file = Path(config_path)
-
+    
     if not config_file.exists():
         raise ConfigurationError(
             f"Configuration file not found: {config_path}"
         )
-
+    
     try:
-        with open(config_file, "r") as f:
-            config_dict = yaml.safe_load(f)
+        with open(config_file, 'r') as f:
+            config = yaml.safe_load(f)
     except yaml.YAMLError as e:
+        raise ConfigurationError(f"Invalid YAML in config file: {e}")
+    except Exception as e:
+        raise ConfigurationError(f"Error reading config file: {e}")
+    
+    # Validate required sections
+    required_sections = ['scrape', 'embedding']
+    for section in required_sections:
+        if section not in config:
+            raise ConfigurationError(f"Missing required section: {section}")
+    
+    # Validate scrape section
+    if 'url-scraped-content' not in config['scrape']:
         raise ConfigurationError(
-            f"Invalid YAML in configuration file: {e}"
-        ) from e
+            "Missing 'url-scraped-content' in scrape section"
+        )
+    
+    # Validate embedding section
+    required_embedding_keys = [
+        'chunk-size',
+        'chunk-overlap',
+        'embedding-provider',
+        'embedding-model',
+        'database-path',
+    ]
+    
+    for key in required_embedding_keys:
+        if key not in config['embedding']:
+            raise ConfigurationError(
+                f"Missing '{key}' in embedding section"
+            )
+    
+    # Set defaults for optional values
+    config['embedding'].setdefault('timeout', 60)
+    config['embedding'].setdefault('max-retries', 3)
+    config['embedding'].setdefault('batch-size', 50)
+    config['embedding'].setdefault('ktop', 20)
+    config['embedding'].setdefault('log', 'log/embedding')
+    
+    # Load environment variables
+    load_dotenv()
+    
+    return config
 
-    if not config_dict:
-        raise ConfigurationError("Configuration file is empty")
 
-    return Config(config_dict)
+def get_scrape_path(config: Dict[str, Any], feed_date: str) -> Path:
+    """
+    Get the base path for scraped content.
+    
+    Args:
+        config: Configuration dictionary
+        feed_date: Feed date in YYYY-MM-DD format
+        
+    Returns:
+        Path to scraped content directory
+    """
+    base_path = Path(config['scrape']['url-scraped-content'])
+    return base_path / feed_date
+
+
+def get_database_path(config: Dict[str, Any]) -> Path:
+    """
+    Get the path for ChromaDB database.
+    
+    Args:
+        config: Configuration dictionary
+        
+    Returns:
+        Path to database directory
+    """
+    return Path(config['embedding']['database-path'])

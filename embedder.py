@@ -1,111 +1,82 @@
-#!/usr/bin/env python3
 """
 Main entry point for the embedder module.
-
-Processes scraped articles, chunks them, generates embeddings, and stores
-them in ChromaDB with idempotency checks.
+Processes scraped articles, chunks them, generates embeddings, and stores in ChromaDB.
 """
 
 import argparse
-import datetime
-import logging
 import sys
+from datetime import date
 from pathlib import Path
 
 from src.embedder.config import load_config
-from src.embedder.exceptions import ConfigurationError
+from src.embedder.exceptions import ConfigurationError, EmbedderError
+from src.embedder.logger import get_logger, log_execution_time
 from src.embedder.processor import EmbeddingProcessor
-from src.embedder.utils import setup_logging
-
-from dotenv import load_dotenv
-load_dotenv(override=True)
 
 
-def parse_arguments() -> argparse.Namespace:
+logger = get_logger(__name__)
+
+
+@log_execution_time
+def main() -> int:
     """
-    Parse command line arguments.
-
+    Main entry point for the embedder.
+    
     Returns:
-        Parsed arguments with date parameter.
+        int: Exit code (0 for success, 1 for failure)
     """
     parser = argparse.ArgumentParser(
         description="Embed scraped articles into ChromaDB"
     )
     parser.add_argument(
-        "--date",
+        "--category",
         type=str,
-        default=datetime.date.today().strftime("%Y-%m-%d"),
-        help="Target date in YYYY-MM-DD format (default: today)",
+        help="Specific category to process (optional)",
     )
-    return parser.parse_args()
-
-
-def validate_date(date_str: str) -> str:
-    """
-    Validate date format.
-
-    Args:
-        date_str: Date string in YYYY-MM-DD format.
-
-    Returns:
-        Validated date string.
-
-    Raises:
-        ValueError: If date format is invalid.
-    """
+    parser.add_argument(
+        "--feed_date",
+        type=str,
+        help="Feed date in YYYY-MM-DD format (default: today)",
+    )
+    
+    args = parser.parse_args()
+    
+    # Determine feed date
+    feed_date = args.feed_date or date.today().strftime('%Y-%m-%d')
+    
+    logger.info(
+        f"Starting embedder",
+        extra={
+            "feed_date": feed_date,
+            "category": args.category or "all",
+        }
+    )
+    
     try:
-        datetime.datetime.strptime(date_str, "%Y-%m-%d")
-        return date_str
-    except ValueError as e:
-        raise ValueError(
-            f"Invalid date format '{date_str}'. Expected YYYY-MM-DD"
-        ) from e
-
-
-def main() -> int:
-    """
-    Main execution function.
-
-    Returns:
-        Exit code (0 for success, 1 for failure).
-    """
-    args = parse_arguments()
-
-    try:
-        # Validate date
-        target_date = validate_date(args.date)
-
         # Load configuration
         config = load_config()
-
-        # Setup logging
-        logger = setup_logging(config)
-        logger.info(f"Starting embedder for date: {target_date}")
-
+        logger.info("Configuration loaded successfully")
+        
         # Initialize processor
-        processor = EmbeddingProcessor(config, target_date)
-
-        # Run processing
-        result = processor.process()
-
-        # Log summary
-        logger.info(
-            f"Processing complete. "
-            f"Success: {result['success']}, "
-            f"Skipped: {result['skipped']}, "
-            f"Failed: {result['failed']}"
-        )
-
+        processor = EmbeddingProcessor(config, feed_date)
+        
+        # Process categories
+        if args.category:
+            processor.process_category(args.category)
+        else:
+            processor.process_all_categories()
+        
+        logger.info("Embedder completed successfully")
         return 0
-
+        
     except ConfigurationError as e:
-        print(f"Configuration error: {e}", file=sys.stderr)
+        logger.error(f"Configuration error: {e}")
         return 1
-    except ValueError as e:
-        print(f"Validation error: {e}", file=sys.stderr)
+    except EmbedderError as e:
+        logger.error(f"Embedder error: {e}")
         return 1
     except Exception as e:
-        print(f"Unexpected error: {e}", file=sys.stderr)
+        logger.error(f"Unexpected error: {e}", exc_info=True)
         return 1
 
 
