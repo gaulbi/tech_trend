@@ -14,6 +14,17 @@ llm:
   llm-model: gpt-5.1
   timeout: 60
   retry: 3 
+image-generator:
+  image-path: data/image                      #Base output folder
+  log: log/image-generator
+  timeout: 60
+  retry: 3 
+  provider: Gemini                     # Gemini, Deepseek, OpenAI
+  llm-model: gemini-2.5-flash-image     # gemini-2.5-flash-image, DeepSeek-V2.5, dall-e-3
+  #default-size: 1024
+  aspect-ratio: "1:1"   # square | wide | tall
+  style-instruction: "Create a clean, modern, vector-style illustration that visually represents the following technical concept. Use flat colors and avoid text."
+  output-format: "jpg"
 scrape:
   url-scraped-content: data/scraped-content
   log: log/scraped
