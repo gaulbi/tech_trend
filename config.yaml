@@ -16,6 +16,7 @@ llm:
   retry: 3 
 image-generator:
   image-path: data/image                      #Base output folder
+  url-mapping-path: data/image-url-mapping
   log: log/image-generator
   timeout: 60
   retry: 3 
@@ -57,3 +58,8 @@ article-publisher:
   server: https://gql.hashnode.com
   publication-id: 69338c8f89000fd11cf3ce38
   timezone: America/New_York
+hashnode:
+  upload-enabled: true                   
+  timeout: 30
+  retry: 3
+  url: https://gql.hashnode.com

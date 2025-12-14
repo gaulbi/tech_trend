@@ -10,6 +10,10 @@
 
 **Purpose**: Publish **today’s technology articles** (Markdown files) to Hashnode using the v2 GraphQL API.
 
+### Feed Date
+- If no date is specified in command, the feed date is today's date.
+- Determine today's date using `datetime.date.today().strftime('%Y-%m-%d')`
+
 ---
 
 ## Configuration
@@ -26,33 +30,13 @@ article-publisher:
   timezone: America/New_York
 article-generator:
   tech-trend-article: data/tech-trend-article       # base input folder
+image-generator:
+  image-path: data/image
 ```
 
 **Validation**:
 - Missing `config.yaml` → Raise `ConfigurationError` and exit.
 - Missing `article-publisher.publication-id` → Raise `ConfigurationError`.
-
----
-
-## Input Data
-**Path**: `{article-generator.tech-trend-article}/{TODAY_DATE}/{category}/*.md `
-
-### TODAY_DATE:
-Automatically determined using `datetime.date.today().strftime('%Y-%m-%d')`
-
-### Markdown Parsing Requirements
-Inside each markdown file:
-- **Title Format**: `# [EN] Title: Your English Title Here`
-- **Extraction Logic**:
-  - Find the first H1 line starting with `# [EN] Title:`
-  - Extract everything after `[EN] Title:` and trim whitespace
-  - If no matching H1 found → Log WARNING and skip file
-- **Content**: The entire Markdown file content (including title line) becomes `contentMarkdown`
-
-### Processing Rules
-- Process articles one by one (order not important).
-- Skip empty files.
-- Log all skip events.
 
 ---
 
@@ -70,7 +54,7 @@ mutation CreateStory($input: CreateStoryInput!) {
 ```
 
 ### Required Input Fields:
-- `title`: Extracted title string
+- `title`: Refer **### Extracted Title**
 - `contentMarkdown`: Full Markdown content
 - `publicationId`: Loaded from `article-publisher.publication-id`
 - `tags`: Optional → default to empty list `[]`
@@ -82,6 +66,72 @@ mutation CreateStory($input: CreateStoryInput!) {
 - Timeout: From `article-publisher.timeout` (seconds)
 
 ---
+
+## Input Data: Tech Trend Articles
+
+### Path
+`{article-generator.tech-trend-article}/{FEED_DATE}/{category}/*.md `
+
+### Example
+If a feed date is 2025-11-25 and a category is software_engineering,
+`data/tech-trend-analysis/2025-11-26/software_engineering/model-context-protocol-mcp.md`
+
+### Processing Rules
+- Process articles one by one (order not important).
+- Skip empty files.
+- Log all skip events.
+
+
+### Extracted Title
+The `title` is one line between `## Title` and `**Date/Time**:`
+
+
+```md
+## 1. [EN] English Article
+
+## Title  
+_title here_
+
+**Date/Time**: 
+```
+
+**Example**  
+If the article has below content, `title` is _Model Context Protocol (MCP)_.
+```md
+## 1. [EN] English Article
+
+## Title  
+Model Context Protocol (MCP)
+
+**Date/Time**: 2025-12-11 00:00
+```
+
+#### Validation
+- If MD file has invalid structure, use article file name as title.
+- Replace all underscores to space.
+- Convert it to compatible to a general article title naming.
+
+**Example**:  
+if an article file path is `data/tech-trend-analysis/2025-11-26/software_engineering/model-context-protocol-mcp-of-ai-agent.md`, title is _Model Context Protocol of AI Agent_.
+
+
+---
+
+## Input Data: Images for Articles
+
+### Path
+`{image-generator.image-path}/{FEED_DATE}/{category}/{article_file_name_with_extention}.jpg`
+
+### Example
+If an article file path is `data/tech-trend-analysis/2025-11-26/software_engineering/model-context-protocol-mcp.md`, image file path is `data/image/2025-11-26/software_engineering/model-context-protocol-mcp.jpg`
+
+If an image file doesn't exist, 
+- publish the article without image.
+- Raise WARN message in log.
+
+---
+
+
 
 ## Error Handling
 
@@ -107,19 +157,18 @@ If GraphQL returns `errors`, treat as failed publish, log with details, skip.
 ```
 1. Multi-level logging (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 2. Console output with colors for different levels
-3. Rotating file handler with 10MB limit keeping 5 backup files
-4. JSON formatting option for structured logging
-5. Function decorator to auto-log calls with timing
-6. Error logging helper that captures stack traces
-7. Configurable via environment variables or config file
-8. Include example usage showing:
+3. JSON formatting option for structured logging
+4. Function decorator to auto-log calls with timing
+5. Error logging helper that captures stack traces
+6. Configurable via environment variables or config file
+7. Include example usage showing:
    - Basic logging
    - Function tracing
    - Error handling with context
    - Conditional debug logging
 
 ### Format: JSON (one object per line)
-**File**: `{article-publisher.log}/article-publisher-{TODAY_DATE}.log`
+**File**: `{article-publisher.log}/article-publisher-{FEED_DATE}.log`
 
 ---
 
@@ -132,7 +181,7 @@ If GraphQL returns `errors`, treat as failed publish, log with details, skip.
 │   └── article-publisher/            # Package
 ├── data/
 │   └── tech-trend-article/            # Analysis results (input) folder
-│          └── {TODAY_DATE}/            # Only write to this directory
+│          └── {FEED_DATE}/            # Only write to this directory
 ├── .env                                # API keys
 ├── config.yaml                         # Configuration file
 ```
