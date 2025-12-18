@@ -9,6 +9,7 @@ tech-trend-analysis:
   prompt: prompt/tech-trend-analysis-prompt.md
   analysis-report: data/tech-trend-analysis
   log: log/tech-trend-analysis
+  org-analysis-report: data/org-tech-trend-analysis
 llm:
   server: openai
   llm-model: gpt-5.1
@@ -63,3 +64,15 @@ hashnode:
   timeout: 30
   retry: 3
   url: https://gql.hashnode.com
+deduplication:
+  history-keywords: data/history_keywords  # distinct from content db
+  collection-name: history_keywords
+  dedup-analysis-report: data/dedup-tech-trend-analysis  # Base output folder
+  similarity-threshold: 0.85                  # Cosine similarity cutoff
+  lookback-days: 7                            # Only check against articles from last N days
+  target-count: 1                             # Number of unique trends to return
+  log: log/deduplication
+  embedding-provider: openai                  # openai, voyageai, gemini, sentence-transformers
+  embedding-model: text-embedding-3-small
+  timeout: 60
+  max-retries: 3

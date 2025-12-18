@@ -97,7 +97,7 @@ If a feed date is 2025-11-21 and a category is software_engineering:
 
 ---
 
-### Logging
+## Logging
 ```json
 {
   "timestamp": "ISO format",
@@ -144,10 +144,9 @@ If a feed date is 2025-11-21 and a category is software_engineering:
 │   └── scraped-content/
 │       └── {FEED_DATE}/      # Only write to this directory
 ├── config.yaml              # Configuration file
+```
 
 - DO NOT implement any logic in `wiki-search.py`. It's only for entry point.
-
-```
 
 ### Entry Point
 ```bash

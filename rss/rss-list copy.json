@@ -12,5 +12,12 @@
     "Dev.to": "https://dev.to/feed",
     "Reddit /r/programming": "https://www.reddit.com/r/programming/.rss",
     "The New Stack": "https://thenewstack.io/feed/"
+  },
+  "AI Hardware": {
+    "Tom's Hardware": "https://www.tomshardware.com/feeds/all",
+    "AnandTech – GPUs": "https://www.anandtech.com/rss/tag/gpus",
+    "The Next Platform": "https://www.nextplatform.com/feed/",
+    "DataCenterDynamics": "https://www.datacenterdynamics.com/rss-news/",
+    "ServeTheHome": "https://www.servethehome.com/feed/"
   }
 }

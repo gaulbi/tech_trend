@@ -60,8 +60,8 @@ You will receive a JSON object in **CONTEXT** containing:
 
 ## Output:
 
-- Return top **3** high score technical trend candidates in output.
-- If more than 3 candidates have the same high score, return more **emerging** technology candidate.
+- Return top **20** high score technical trend candidates in output.
+- If more than 20 candidates have the same high score, return more **emerging** technology candidate.
 
 ### Output Format:
 
