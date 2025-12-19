@@ -41,7 +41,7 @@ class ConfigManager:
         required_sections = [
             'article-generator',
             'image-generator',
-            'hashnode'
+            'imgbb'
         ]
         
         for section in required_sections:

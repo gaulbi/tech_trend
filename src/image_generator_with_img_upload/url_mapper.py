@@ -25,7 +25,7 @@ class URLMapper:
         category: str,
         article_file: str,
         local_path: str,
-        hashnode_url: Optional[str],
+        imgbb_url: Optional[str],
         status: str
     ) -> None:
         """
@@ -36,7 +36,7 @@ class URLMapper:
             category: Article category
             article_file: Article filename
             local_path: Local image path
-            hashnode_url: Hashnode CDN URL (None if upload failed/disabled)
+            imgbb_url: imgbb_url CDN URL (None if upload failed/disabled)
             status: Upload status (success, upload_failed, upload_disabled)
         """
         mapping_path = self._get_mapping_path(
@@ -50,7 +50,7 @@ class URLMapper:
             'category': category,
             'feed_date': feed_date,
             'local_path': local_path,
-            'hashnode_url': hashnode_url,
+            'imgbb_url': imgbb_url,
             'uploaded_at': datetime.utcnow().isoformat(),
             'status': status
         }

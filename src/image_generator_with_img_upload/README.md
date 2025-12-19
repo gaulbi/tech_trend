@@ -129,7 +129,7 @@ Example mapping:
   "category": "software_engineering",
   "feed_date": "2025-11-26",
   "local_path": "data/image/2025-11-26/software_engineering/model-context-protocol-mcp.jpg",
-  "hashnode_url": "https://cdn.hashnode.com/res/hashnode/image/upload/v1234567890/xyz.jpg",
+  "imgbb_url": "https://cdn.hashnode.com/res/hashnode/image/upload/v1234567890/xyz.jpg",
   "uploaded_at": "2025-11-26T10:30:45.123456",
   "status": "success"
 }

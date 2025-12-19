@@ -27,6 +27,10 @@ class HashNodeUploadError(ImageGeneratorError):
     """Raised when Hashnode upload fails."""
     pass
 
+class ImgBBUploadError(ImageGeneratorError):
+    """Raised when ImgBB upload fails."""
+    pass
+
 
 class LLMProviderError(ImageGeneratorError):
     """Raised when LLM provider operations fail."""

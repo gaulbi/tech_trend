@@ -108,7 +108,7 @@ After successfully generating and saving the local image:
   "category": "software_engineering",
   "feed_date": "2025-11-26",
   "local_path": "data/image/2025-11-26/software_engineering/model-context-protocol-mcp.jpg",
-  "hashnode_url": "https://cdn.hashnode.com/res/hashnode/image/upload/v1234567890/xyz.jpg",
+  "imgbb_url": "https://i.ibb.co/Sw1jqR40/model-context-protocol-mcp.png",
   "uploaded_at": "2025-11-26T10:30:45.123456",
   "status": "success"
 }
@@ -158,9 +158,9 @@ Authorization: {HASHNODE_API_KEY}
 - **Note**: If Hashnode upload fails, the process should continue (local image is still saved)
 
 ### Upload Disabled
-If `{hashnode.upload-enabled}` is false:
-- Skip Hashnode upload
-- Save URL mapping with status `upload_disabled` and `hashnode_url: null`
+If `{imgbb.upload-enabled}` is false:
+- Skip image upload to ImgBB
+- Save URL mapping with status `upload_disabled` and `imgbb_url: null`
 
 ---
 

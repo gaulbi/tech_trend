@@ -9,12 +9,12 @@ from typing import Optional
 from .config import ConfigManager
 from .parser import ArticleParser
 from .llm import LLMProviderFactory
-from .hashnode import HashNodeUploader
+from .imgbb import ImgBBUploader
 from .url_mapper import URLMapper
 from .exceptions import (
     ValidationError,
     NetworkError,
-    HashNodeUploadError,
+    ImgBBUploadError,
     LLMProviderError
 )
 
@@ -41,10 +41,10 @@ class ImageProcessor:
         self.feed_date = feed_date
         self.parser = ArticleParser()
         self.url_mapper = URLMapper(config.url_mapping_path)
-        self.upload_enabled = config.get('hashnode.upload-enabled', True)
+        self.upload_enabled = config.get('imgbb.upload-enabled', True)
         
         self.llm_provider = self._create_llm_provider()
-        self.hashnode_uploader = self._create_hashnode_uploader()
+        self.imgbb_uploader = self._create_imgbb_uploader()
     
     def process(
         self,
@@ -158,11 +158,11 @@ class ImageProcessor:
             if needs_generation:
                 self._generate_image(summary, local_path)
             
-            hashnode_url = None
+            imgbb_url = None
             status = 'upload_disabled'
             
-            if needs_upload and self.upload_enabled and self.hashnode_uploader:
-                hashnode_url, status = self._upload_image(local_path)
+            if needs_upload and self.upload_enabled and self.imgbb_uploader:
+                imgbb_url, status = self._upload_image(local_path)
             elif not self.upload_enabled:
                 status = 'upload_disabled'
             elif needs_generation:
@@ -174,7 +174,7 @@ class ImageProcessor:
                 category,
                 article_name,
                 str(local_path),
-                hashnode_url,
+                imgbb_url,
                 status
             )
             
@@ -183,7 +183,7 @@ class ImageProcessor:
                 extra={
                     'extra_data': {
                         'status': status,
-                        'hashnode_url': hashnode_url
+                        'imgbb_url': imgbb_url
                     }
                 }
             )
@@ -217,7 +217,7 @@ class ImageProcessor:
         return False
     
     def _needs_upload(self, category: str, article_name: str) -> bool:
-        """Check if image needs to be uploaded to Hashnode."""
+        """Check if image needs to be uploaded to ImgBB."""
         mapping = self.url_mapper.load(
             self.feed_date,
             category,
@@ -269,19 +269,19 @@ class ImageProcessor:
     
     def _upload_image(self, local_path: Path) -> tuple:
         """
-        Upload image to Hashnode.
+        Upload image to ImgBB.
         
         Returns:
-            Tuple of (hashnode_url, status)
+            Tuple of (imgbb_url, status)
         """
-        if not self.hashnode_uploader:
+        if not self.imgbb_uploader:
             return None, 'upload_disabled'
         
         try:
-            url = self.hashnode_uploader.upload(local_path)
+            url = self.imgbb_uploader.upload(local_path)
             return url, 'success'
-        except HashNodeUploadError as e:
-            self.logger.error(f"Hashnode upload failed: {e}")
+        except ImgBBUploadError as e:
+            self.logger.error(f"ImgBB upload failed: {e}")
             return None, 'upload_failed'
     
     def _create_llm_provider(self):
@@ -295,24 +295,24 @@ class ImageProcessor:
             self.config
         )
     
-    def _create_hashnode_uploader(self) -> Optional[HashNodeUploader]:
-        """Create Hashnode uploader instance."""
+    def _create_imgbb_uploader(self) -> Optional[ImgBBUploader]:
+        """Create ImgBB uploader instance."""
         if not self.upload_enabled:
-            self.logger.info("Hashnode upload is disabled in config")
+            self.logger.info("ImgBB upload is disabled in config")
             return None
         
-        api_key = self.config.get_env('HASHNODE_API_KEY')
+        api_key = self.config.get_env('IMGBB_API_KEY')
         if not api_key:
             self.logger.warning(
-                "HASHNODE_API_KEY not set, uploads will be disabled"
+                "IMGBB_API_KEY not set, uploads will be disabled"
             )
             self.upload_enabled = False
             return None
         
-        return HashNodeUploader(
+        return ImgBBUploader(
             api_key=api_key,
-            base_url=self.config.get('hashnode.url'),
-            timeout=self.config.get('hashnode.timeout', 30),
-            max_retries=self.config.get('hashnode.retry', 3),
+            base_url=self.config.get('imgbb.url'),
+            timeout=self.config.get('imgbb.timeout', 30),
+            max_retries=self.config.get('imgbb.retry', 3),
             logger=self.logger
         )
