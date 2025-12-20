@@ -1,3 +1,6 @@
+# ==============================================================================
+# FILE: src/article_publisher/exceptions.py
+# ==============================================================================
 """Custom exceptions for article publisher."""
 
 
@@ -11,21 +14,6 @@ class ConfigurationError(ArticlePublisherError):
     pass
 
 
-class ArticleNotFoundError(ArticlePublisherError):
-    """Raised when article file cannot be found."""
-    pass
-
-
-class ImageMappingError(ArticlePublisherError):
-    """Raised when image URL mapping is invalid or missing."""
-    pass
-
-
 class PublishError(ArticlePublisherError):
     """Raised when article publishing fails."""
-    pass
-
-
-class NetworkError(ArticlePublisherError):
-    """Raised when network operation fails."""
     pass

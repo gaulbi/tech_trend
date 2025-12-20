@@ -31,6 +31,8 @@ You must output exactly two sections in this order, using markdown:
 
 **Date/Time**: {YYYY-MM-DD HH:mm}
 
+image_url_tag_here
+
 ## Summary  
 1 paragraph that briefly sets the stage and explains why the topic matters.
 Should be readable, narrative, and blog-friendly.
@@ -69,7 +71,7 @@ Prefer fluid explanations, relatable examples, and clear implications for engine
 ## 제목  
 {translated_title}  
 
-**Date/Time**: {YYYY-MM-DD HH:mm}
+**Date/Time**: {YYYY-MM-DD HH:mm:ss}
 
 ## 요약 
 {Korean summary, natural and polished, not a sentence-by-sentence translation}

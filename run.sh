@@ -4,6 +4,6 @@ uv run deduplicator.py
 uv run wiki-search.py
 uv run url-scraper.py
 uv run embedder.py
-#uv run article-generator.py
+uv run article-generator.py
 uv run image-generator_with-img-upload.py
 uv run article-publisher.py

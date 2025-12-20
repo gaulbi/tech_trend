@@ -1,6 +1,3 @@
-# ==============================================================================
-# FILE: src/article_publisher/logger.py
-# ==============================================================================
 """Logging configuration and utilities."""
 
 import json
@@ -8,33 +5,8 @@ import logging
 import sys
 import traceback
 from datetime import datetime
-from functools import wraps
-from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional
-
-from .timezone_utils import get_timezone
-
-
-class ColoredFormatter(logging.Formatter):
-    """Custom formatter with colors for console output."""
-    
-    COLORS = {
-        'DEBUG': '\033[36m',      # Cyan
-        'INFO': '\033[32m',       # Green
-        'WARNING': '\033[33m',    # Yellow
-        'ERROR': '\033[31m',      # Red
-        'CRITICAL': '\033[35m',   # Magenta
-        'RESET': '\033[0m'
-    }
-    
-    def format(self, record: logging.LogRecord) -> str:
-        """Format log record with colors."""
-        color = self.COLORS.get(record.levelname, self.COLORS['RESET'])
-        record.levelname = (
-            f"{color}{record.levelname}{self.COLORS['RESET']}"
-        )
-        return super().format(record)
+from typing import Any, Dict
 
 
 class JSONFormatter(logging.Formatter):
@@ -43,131 +15,106 @@ class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as JSON."""
         log_data = {
-            'timestamp': datetime.utcnow().isoformat() + 'Z',
-            'level': record.levelname,
-            'module': record.module,
-            'function': record.funcName,
-            'line': record.lineno,
-            'message': record.getMessage(),
+            "timestamp": datetime.utcnow().isoformat(),
+            "level": record.levelname,
+            "module": record.module,
+            "function": record.funcName,
+            "line": record.lineno,
+            "message": record.getMessage()
         }
         
+        # Add exception info if present
         if record.exc_info:
-            log_data['traceback'] = ''.join(
+            log_data["traceback"] = "".join(
                 traceback.format_exception(*record.exc_info)
             )
         
         # Add extra fields
-        for key, value in record.__dict__.items():
-            if key not in [
-                'name', 'msg', 'args', 'created', 'filename', 'funcName',
-                'levelname', 'levelno', 'lineno', 'module', 'msecs',
-                'message', 'pathname', 'process', 'processName',
-                'relativeCreated', 'thread', 'threadName', 'exc_info',
-                'exc_text', 'stack_info'
-            ]:
-                log_data[key] = value
+        if hasattr(record, "extra_fields"):
+            log_data.update(record.extra_fields)
         
         return json.dumps(log_data)
 
 
-def setup_logger(config: Dict[str, Any]) -> logging.Logger:
+class ColoredConsoleFormatter(logging.Formatter):
+    """Colored console formatter for better readability."""
+    
+    COLORS = {
+        'DEBUG': '\033[36m',      # Cyan
+        'INFO': '\033[32m',       # Green
+        'WARNING': '\033[33m',    # Yellow
+        'ERROR': '\033[31m',      # Red
+        'CRITICAL': '\033[35m',   # Magenta
+    }
+    RESET = '\033[0m'
+    
+    def format(self, record: logging.LogRecord) -> str:
+        """Format log record with colors."""
+        color = self.COLORS.get(record.levelname, self.RESET)
+        record.levelname = f"{color}{record.levelname}{self.RESET}"
+        return super().format(record)
+
+
+def setup_logging(log_dir: str, feed_date: str) -> None:
     """
-    Setup logger with console and file handlers.
+    Setup logging configuration.
     
     Args:
-        config: Configuration dictionary
-        
-    Returns:
-        Configured logger instance
+        log_dir: Directory for log files
+        feed_date: Feed date for log file naming
     """
-    logger = logging.getLogger('article_publisher')
-    logger.setLevel(logging.DEBUG)
-    logger.handlers.clear()
+    # Create log directory
+    log_path = Path(log_dir)
+    log_path.mkdir(parents=True, exist_ok=True)
     
-    # Console handler with colors
+    # Log file path
+    log_file = log_path / f"article-publisher-{feed_date}.log"
+    
+    # Root logger
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+    
+    # File handler with JSON formatting
+    file_handler = logging.FileHandler(log_file)
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(JSONFormatter())
+    root_logger.addHandler(file_handler)
+    
+    # Console handler with colored formatting
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(logging.INFO)
-    console_formatter = ColoredFormatter(
+    console_formatter = ColoredConsoleFormatter(
         '%(asctime)s - %(levelname)s - %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
     console_handler.setFormatter(console_formatter)
-    logger.addHandler(console_handler)
-    
-    # File handler with JSON formatting
-    log_dir = Path(config['article-publisher']['log'])
-    log_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Use configured timezone for log filename
-    timezone_str = config['article-publisher']['timezone']
-    tz = get_timezone(timezone_str)
-    today = datetime.now(tz).strftime('%Y-%m-%d')
-    log_file = log_dir / f"article-publisher-{today}.log"
-    
-    file_handler = RotatingFileHandler(
-        log_file,
-        maxBytes=10 * 1024 * 1024,  # 10MB
-        backupCount=5,
-        encoding='utf-8'
-    )
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(JSONFormatter())
-    logger.addHandler(file_handler)
-    
-    return logger
+    root_logger.addHandler(console_handler)
 
 
-def log_execution_time(logger: logging.Logger) -> Callable:
+def get_logger(name: str) -> logging.Logger:
     """
-    Decorator to log function calls with timing.
+    Get logger instance.
     
     Args:
-        logger: Logger instance
+        name: Logger name (typically __name__)
         
     Returns:
-        Decorator function
+        Logger instance
     """
-    def decorator(func: Callable) -> Callable:
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            start_time = datetime.now()
-            logger.debug(
-                f"Calling {func.__name__}",
-                extra={'args': str(args), 'kwargs': str(kwargs)}
-            )
-            
-            try:
-                result = func(*args, **kwargs)
-                duration = (datetime.now() - start_time).total_seconds()
-                logger.debug(
-                    f"{func.__name__} completed in {duration:.3f}s"
-                )
-                return result
-            except Exception as e:
-                duration = (datetime.now() - start_time).total_seconds()
-                logger.error(
-                    f"{func.__name__} failed after {duration:.3f}s: {e}"
-                )
-                raise
-        
-        return wrapper
-    return decorator
+    return logging.getLogger(name)
 
 
-def log_error(
-    logger: logging.Logger,
-    error: Exception,
-    context: str = ""
-) -> None:
-    """
-    Log error with full context and traceback.
+class LoggerAdapter(logging.LoggerAdapter):
+    """Logger adapter for adding context fields."""
     
-    Args:
-        logger: Logger instance
-        error: Exception to log
-        context: Additional context string
-    """
-    logger.error(
-        f"{context}: {error}" if context else str(error),
-        exc_info=True
-    )
+    def process(
+        self,
+        msg: str,
+        kwargs: Dict[str, Any]
+    ) -> tuple[str, Dict[str, Any]]:
+        """Process log message and add extra fields."""
+        extra = kwargs.get("extra", {})
+        if self.extra:
+            extra.update(self.extra)
+        kwargs["extra"] = {"extra_fields": extra}
+        return msg, kwargs

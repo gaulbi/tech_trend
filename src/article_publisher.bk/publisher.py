@@ -14,7 +14,8 @@ except ImportError:
     from backports.zoneinfo import ZoneInfo
 
 from .config import get_api_key
-from .hashnode_client import HashnodeClient
+#from .hashnode_client import HashnodeClient
+from .hashnode_client_with_img import HashnodeWithImageClient
 from .markdown_parser import MarkdownParser
 
 
@@ -35,13 +36,15 @@ class ArticlePublisher:
         
         # Initialize Hashnode client
         pub_config = config['article-publisher']
-        self.client = HashnodeClient(
+        img_gen_config = config['image-generator']
+        self.client = HashnodeWithImageClient(
             api_key=get_api_key(),
             server_url=pub_config['server'],
             header_name=pub_config['api-header'],
             timeout=pub_config['timeout'],
             retry_count=pub_config['retry'],
-            logger=logger
+            logger=logger,
+            image_mapping_base_path=img_gen_config['url-mapping-path']
         )
         
         self.publication_id = pub_config['publication-id']

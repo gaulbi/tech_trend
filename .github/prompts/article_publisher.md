@@ -9,6 +9,7 @@
 ## Module Overview
 
 **Purpose**: Publish **today’s technology articles** (Markdown files) to Hashnode using the v2 GraphQL API.
+The module must be production-ready with comprehensive error handling, retry logic, and logging.
 
 ### Feed Date
 - If no date is specified in command, the feed date is today's date.
@@ -28,30 +29,17 @@ article-publisher:
   server: https://gql.hashnode.com
   publication-id: 69337c78b74a62fa02a93b49
   timezone: America/New_York
+  published-article: data/published-tech-trend-article # base output folder
 article-generator:
   tech-trend-article: data/tech-trend-article       # base input folder
 image-generator:
-  image-path: data/image
+  url-mapping-path: data/image-url-mapping 
 ```
 
-**Validation**:
-- Missing `config.yaml` → Raise `ConfigurationError` and exit.
-- Missing `article-publisher.publication-id` → Raise `ConfigurationError`.
+**Validation**: Missing config.yaml → Raise `ConfigurationError` and exit.
 
 ---
 
-## Hashnode Publishing (GraphQL v2)
-Use the `createStory` mutation:
-```graphql
-mutation CreateStory($input: CreateStoryInput!) {
-  createStory(input: $input) {
-    post { 
-      id 
-      slug 
-    }
-  }
-}
-```
 
 ### Required Input Fields:
 - `title`: Refer **### Extracted Title**
@@ -67,23 +55,41 @@ mutation CreateStory($input: CreateStoryInput!) {
 
 ---
 
-## Input Data: Tech Trend Articles
+## Process
+
+### Process Steps
+1. Load an article file. **Load Tech Trend Article**
+2. Extrace a title in the article file. **Article Title**
+3. Load an image URL mapping file and take `imgbb_url`. **Load Image URL Mapping**
+4. Inject extra information in the loaded article. **Extra Information In Article**
+5. Upload the article to Hashnode. **Upload Article to Hashnode**
+6. Record the status of article publish. **Status Article Publish**
+
+### Process Rules
+- Iterate through **Process Steps** in each `category` in the given `feed_date`.
+- If multiple md files are found, iterate though **Process Steps** in each file.
+
+### Idempotency
+
+**Before fetching each category**: Check if file exists at `{article-publisher.published-article}/{FEED_DATE}/{category}/{article_file_name}.json`
+- **If exists**: Log INFO, print "Skipping publishing `{article_file_name}.md`", don't publish
+
+---
+
+## Load Tech Trend Article
 
 ### Path
 `{article-generator.tech-trend-article}/{FEED_DATE}/{category}/*.md `
 
 ### Example
-If a feed date is 2025-11-25 and a category is software_engineering,
-`data/tech-trend-analysis/2025-11-26/software_engineering/model-context-protocol-mcp.md`
+If a feed date is 2025-11-25 and a category is software_engineering, the article pathes can be,
+`data/tech-trend-article/2025-11-26/software_engineering/article_1.md`
+`data/tech-trend-article/2025-11-26/software_engineering/article_2.md`
 
-### Processing Rules
-- Process articles one by one (order not important).
-- Skip empty files.
-- Log all skip events.
+---
 
-
-### Extracted Title
-The `title` is one line between `## Title` and `**Date/Time**:`
+## Article Title
+The value of `title` in Hashnode input payload is one line between `## Title` and `**Date/Time**:` in the article
 
 
 ```md
@@ -103,35 +109,119 @@ If the article has below content, `title` is _Model Context Protocol (MCP)_.
 ## Title  
 Model Context Protocol (MCP)
 
-**Date/Time**: 2025-12-11 00:00
+**Date/Time**: 2025-12-11 15:30:20
 ```
 
-#### Validation
-- If MD file has invalid structure, use article file name as title.
-- Replace all underscores to space.
-- Convert it to compatible to a general article title naming.
-
-**Example**:  
-if an article file path is `data/tech-trend-analysis/2025-11-26/software_engineering/model-context-protocol-mcp-of-ai-agent.md`, title is _Model Context Protocol of AI Agent_.
-
-
 ---
 
-## Input Data: Images for Articles
-
+## Load Image URL Mapping
 ### Path
-`{image-generator.image-path}/{FEED_DATE}/{category}/{article_file_name_with_extention}.jpg`
+`{image-generator.url-mapping-path}/{FEED_DATE}/{category}/{article_file_name}.json`
 
 ### Example
-If an article file path is `data/tech-trend-analysis/2025-11-26/software_engineering/model-context-protocol-mcp.md`, image file path is `data/image/2025-11-26/software_engineering/model-context-protocol-mcp.jpg`
+If a feed date is 2025-11-25, a category is software_engineering and a file name is article_1.md, the mapping file path is `data/image-url-mapping/2025-11-25/software_engineering/article_1.json`
 
-If an image file doesn't exist, 
-- publish the article without image.
-- Raise WARN message in log.
+### Format
+```json
+{
+  "article_file": "retrieval-augmented-generation.md",
+  "category": "software_engineering",
+  "feed_date": "2025-12-20",
+  "local_path": "data/image/2025-12-20/software_engineering/retrieval-augmented-generation.jpg",
+  "imgbb_url": "https://i.ibb.co/1f5Fggns/retrieval-augmented-generation.png",
+  "uploaded_at": "2025-12-20T16:29:11.271588",
+  "status": "success"
+}
+```
 
 ---
 
+## Extra Information In Article
+### Published Date/Time
+1. Determine current date/time using `datetime.date.today().strftime('"%Y-%m-%d %H:%M:%S"')`
+2. Replace `{YYYY-MM-DD HH:mm:ss}` to currrent date/time.
 
+**Important**:  
+- Published Date/Time is different from `feed_date`.
+- when the feed date is _2025-12-10_, the published date/time can be _2025-12-10 15:30:25_.
+
+### Insert Image URL
+1. Find `imgbb_url` in the loaded **Image URL Mapping** file
+2. Find string "image_url_tag_here" in the loaded article file.
+3. Replace the string "image_url_tag_here" to _Alt Text_ syntax using following format.
+![Alt Text](`{imgbb_url}`)
+
+**Example**
+- If `imgbb_url` is https://example.com/image.jpg, and the loaded article is 
+```md
+## Title 
+Article Title about Tech
+
+**Date/Time**: 2025-12-10 15:30:13
+
+image_url_tag_here
+
+## Summary  
+```
+
+After URL is injected
+```md
+## Title 
+Article Title about Tech
+
+**Date/Time**: 2025-12-10 15:30:13
+
+![Alt Text](https://example.com/image.jpg)
+
+## Summary  
+```
+
+---
+
+## Upload Article to Hashnode
+
+Upload the modified, loaded article to Hashnode using GraphQL
+
+### Hashnode Publishing (GraphQL v2)
+Use the `PublishPost` mutation:
+```graphql
+  mutation PublishPost($input: PublishPostInput!) {
+    publishPost(input: $input) {
+      post { 
+        id 
+        slug 
+        title
+      }
+    }
+  }
+```
+
+---
+
+## Status Article Publish
+Create a json file after the article publish is completed.
+
+### Output File Path
+`{article-publisher.published-article}/{FEED_DATE}/{category}/{article_file_name}.json`
+
+**File Path Example**
+If a feed_date is 2025-12-10, a category is software_engineering, and a article_file_name is retrieval-augmented-generation.md, path is `data/published-tech-trend-article/2025-12-10/software_engineering/retrieval-augmented-generation.json`
+
+### Output Payload
+```json
+{
+  "feed_date": "",
+  "title": "",
+  "published_datetime": "",
+  "category": "",
+  "article_url": "",
+  "status": "" 
+}
+```
+
+`status` can be _Success_ or _Fail_. 
+
+---
 
 ## Error Handling
 
@@ -185,6 +275,20 @@ If GraphQL returns `errors`, treat as failed publish, log with details, skip.
 ├── .env                                # API keys
 ├── config.yaml                         # Configuration file
 ```
+
+### Entry Point
+```bash
+python article-publisher.py
+
+python article-publisher.py --category "software_engineering"
+
+python article-publisher.py --feed_date "2025-02-01"
+
+python article-publisher.py --category "software_engineering" --feed_date "2025-02-01" --file_name "model-context-protocol.md"
+```
+- **category**, **feed_date** and **file_name** are optional input parameters.
+- **category** and **feed_date** are required to use **file_name**.
+- If the optional parameters are presented, ignore **Idempotency** rule.
 
 ---
 
