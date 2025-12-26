@@ -1,3 +1,4 @@
+cd /Users/jongkookkim/Desktop/prod/tech_trend
 source .venv/bin/activate
 uv run rss-fetch.py
 uv run tech-trend-analysis.py
