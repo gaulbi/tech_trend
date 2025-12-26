@@ -24,9 +24,11 @@ class URLMapper:
         feed_date: str,
         category: str,
         article_file: str,
-        local_path: str,
+        local_path: Optional[str],
         imgbb_url: Optional[str],
-        status: str
+        status: str,
+        thumbnail_local_path: Optional[str] = None,
+        thumbnail_imgbb_url: Optional[str] = None
     ) -> None:
         """
         Save URL mapping to JSON file.
@@ -35,9 +37,11 @@ class URLMapper:
             feed_date: Feed date string
             category: Article category
             article_file: Article filename
-            local_path: Local image path
+            local_path: Local image path (None if not generated)
             imgbb_url: imgbb_url CDN URL (None if upload failed/disabled)
             status: Upload status (success, upload_failed, upload_disabled)
+            thumbnail_local_path: Local thumbnail path (optional)
+            thumbnail_imgbb_url: Thumbnail CDN URL (optional)
         """
         mapping_path = self._get_mapping_path(
             feed_date,
@@ -51,6 +55,8 @@ class URLMapper:
             'feed_date': feed_date,
             'local_path': local_path,
             'imgbb_url': imgbb_url,
+            'thumbnail_local_path': thumbnail_local_path,
+            'thumbnail_imgbb_url': thumbnail_imgbb_url,
             'uploaded_at': datetime.utcnow().isoformat(),
             'status': status
         }

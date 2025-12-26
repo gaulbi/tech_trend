@@ -56,8 +56,7 @@ class HashnodeClient:
         title: str,
         content: str,
         publication_id: str,
-        img_url: str,
-        tags: List[str] = None,
+        tags: List[str] = None
     ) -> HashnodeResponse:
         """
         Publish article to Hashnode.
@@ -66,7 +65,6 @@ class HashnodeClient:
             title: Article title
             content: Article content in markdown
             publication_id: Hashnode publication ID
-            img_url: Image URL to be used as a cover image in the article
             tags: Optional list of tags
             
         Returns:
@@ -85,14 +83,9 @@ class HashnodeClient:
                 "title": title,
                 "contentMarkdown": content,
                 "publicationId": publication_id,
-                "tags": tags,
-                "coverImageOptions": {
-                    "coverImageURL": img_url
-                }
+                "tags": tags
             }
         }
-
-        logger.info(f"payload variables: {variables}")
         
         # Prepare request payload
         payload = {

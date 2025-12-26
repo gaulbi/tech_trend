@@ -1,19 +1,20 @@
 """
 Advanced logging module with JSON formatting and function tracing.
 """
+import functools
 import json
 import logging
-import traceback
-import functools
+import sys
 import time
+import traceback
 from datetime import datetime
-from pathlib import Path
-from typing import Optional, Any, Callable
 from logging.handlers import TimedRotatingFileHandler
+from pathlib import Path
+from typing import Any, Callable, Optional
 
 
 class ColoredFormatter(logging.Formatter):
-    """Formatter that adds colors to console output."""
+    """Colored console formatter for different log levels."""
     
     COLORS = {
         'DEBUG': '\033[36m',      # Cyan
@@ -21,156 +22,138 @@ class ColoredFormatter(logging.Formatter):
         'WARNING': '\033[33m',    # Yellow
         'ERROR': '\033[31m',      # Red
         'CRITICAL': '\033[35m',   # Magenta
-        'RESET': '\033[0m'
     }
-
+    RESET = '\033[0m'
+    
     def format(self, record: logging.LogRecord) -> str:
         """Format log record with colors."""
-        color = self.COLORS.get(record.levelname, self.COLORS['RESET'])
-        reset = self.COLORS['RESET']
-        record.levelname = f"{color}{record.levelname}{reset}"
+        color = self.COLORS.get(record.levelname, self.RESET)
+        record.levelname = f"{color}{record.levelname}{self.RESET}"
         return super().format(record)
 
 
 class JSONFormatter(logging.Formatter):
-    """Formatter that outputs logs as JSON objects."""
+    """JSON formatter for structured logging."""
     
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as JSON."""
-        log_obj = {
-            "timestamp": datetime.utcnow().isoformat(),
-            "level": record.levelname,
-            "module": record.module,
-            "function": record.funcName,
-            "line": record.lineno,
-            "message": record.getMessage()
+        log_data = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'level': record.levelname,
+            'module': record.module,
+            'function': record.funcName,
+            'line': record.lineno,
+            'message': record.getMessage(),
         }
         
         if record.exc_info:
-            log_obj["traceback"] = ''.join(
+            log_data['traceback'] = ''.join(
                 traceback.format_exception(*record.exc_info)
             )
         
-        return json.dumps(log_obj)
-
-
-class Logger:
-    """Advanced logger with multiple handlers and utilities."""
-    
-    def __init__(
-        self,
-        name: str,
-        log_file: Optional[Path] = None,
-        level: str = "INFO",
-        use_json: bool = True,
-        retention_days: int = 30
-    ):
-        """
-        Initialize logger.
+        if hasattr(record, 'extra_data'):
+            log_data.update(record.extra_data)
         
-        Args:
-            name: Logger name
-            log_file: Path to log file
-            level: Logging level
-            use_json: Use JSON formatting for file output
-            retention_days: Days to retain log files
-        """
-        self.logger = logging.getLogger(name)
-        self.logger.setLevel(getattr(logging, level.upper()))
-        self.logger.handlers.clear()
-        
-        # Console handler with colors
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        console_formatter = ColoredFormatter(
-            '%(levelname)s - %(message)s'
-        )
-        console_handler.setFormatter(console_formatter)
-        self.logger.addHandler(console_handler)
-        
-        # File handler with rotation
-        if log_file:
-            try:
-                log_file.parent.mkdir(parents=True, exist_ok=True)
-            except FileExistsError:
-                pass  # Another process created it
-            
-            file_handler = TimedRotatingFileHandler(
-                str(log_file),
-                when='midnight',
-                interval=1,
-                backupCount=retention_days
-            )
-            file_handler.setLevel(logging.DEBUG)
-            
-            if use_json:
-                file_formatter = JSONFormatter()
-            else:
-                file_formatter = logging.Formatter(
-                    '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-                )
-            
-            file_handler.setFormatter(file_formatter)
-            self.logger.addHandler(file_handler)
-    
-    def debug(self, message: str, **kwargs: Any) -> None:
-        """Log debug message."""
-        self.logger.debug(message, extra=kwargs)
-    
-    def info(self, message: str, **kwargs: Any) -> None:
-        """Log info message."""
-        self.logger.info(message, extra=kwargs)
-    
-    def warning(self, message: str, **kwargs: Any) -> None:
-        """Log warning message."""
-        self.logger.warning(message, extra=kwargs)
-    
-    def error(
-        self,
-        message: str,
-        exc_info: bool = False,
-        **kwargs: Any
-    ) -> None:
-        """Log error message with optional traceback."""
-        self.logger.error(message, exc_info=exc_info, extra=kwargs)
-    
-    def critical(self, message: str, **kwargs: Any) -> None:
-        """Log critical message."""
-        self.logger.critical(message, extra=kwargs)
+        return json.dumps(log_data, ensure_ascii=False)
 
 
-def log_execution(logger: Logger) -> Callable:
+def setup_logger(config: Any, feed_date: str) -> logging.Logger:
     """
-    Decorator to log function execution with timing.
+    Set up logger with file and console handlers.
+    
+    Args:
+        config: Configuration manager instance
+        feed_date: Feed date string for log file naming
+        
+    Returns:
+        Configured logger instance
+    """
+    logger = logging.getLogger('image_generator')
+    logger.setLevel(logging.DEBUG)
+    logger.handlers.clear()
+    
+    log_dir = config.log_path
+    log_dir.mkdir(parents=True, exist_ok=True)
+    
+    log_file = log_dir / f"image-generator-{feed_date}.log"
+    
+    file_handler = TimedRotatingFileHandler(
+        log_file,
+        when='D',
+        interval=1,
+        backupCount=30,
+        encoding='utf-8'
+    )
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(JSONFormatter())
+    
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    console_formatter = ColoredFormatter(
+        '%(asctime)s - %(levelname)s - %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    console_handler.setFormatter(console_formatter)
+    
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    
+    return logger
+
+
+def log_function_call(func: Callable) -> Callable:
+    """
+    Decorator to automatically log function calls with timing.
+    
+    Args:
+        func: Function to decorate
+        
+    Returns:
+        Decorated function
+    """
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        logger = logging.getLogger('image_generator')
+        func_name = func.__name__
+        
+        logger.debug(f"Entering {func_name}")
+        start_time = time.time()
+        
+        try:
+            result = func(*args, **kwargs)
+            elapsed = time.time() - start_time
+            logger.debug(
+                f"Exiting {func_name}",
+                extra={'extra_data': {'elapsed_seconds': elapsed}}
+            )
+            return result
+        except Exception as e:
+            elapsed = time.time() - start_time
+            logger.error(
+                f"Error in {func_name}: {str(e)}",
+                exc_info=True,
+                extra={'extra_data': {'elapsed_seconds': elapsed}}
+            )
+            raise
+    
+    return wrapper
+
+
+def log_error_with_context(
+    logger: logging.Logger,
+    message: str,
+    context: Optional[dict] = None
+) -> None:
+    """
+    Log error with additional context.
     
     Args:
         logger: Logger instance
-        
-    Returns:
-        Decorator function
+        message: Error message
+        context: Additional context dictionary
     """
-    def decorator(func: Callable) -> Callable:
-        @functools.wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:
-            start_time = time.time()
-            func_name = func.__qualname__
-            
-            logger.debug(f"Calling {func_name}")
-            
-            try:
-                result = func(*args, **kwargs)
-                elapsed = time.time() - start_time
-                logger.debug(
-                    f"{func_name} completed in {elapsed:.2f}s"
-                )
-                return result
-            except Exception as e:
-                elapsed = time.time() - start_time
-                logger.error(
-                    f"{func_name} failed after {elapsed:.2f}s: {str(e)}",
-                    exc_info=True
-                )
-                raise
-        
-        return wrapper
-    return decorator
+    logger.error(
+        message,
+        exc_info=True,
+        extra={'extra_data': context or {}}
+    )

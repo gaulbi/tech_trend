@@ -15,6 +15,8 @@ class ImageMapping:
     imgbb_url: str
     uploaded_at: str
     status: str
+    thumbnail_local_path: str
+    thumbnail_imgbb_url: str
 
 
 @dataclass

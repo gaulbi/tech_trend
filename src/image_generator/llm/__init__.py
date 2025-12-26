@@ -1,5 +1,5 @@
 """
-LLM provider module for image generation.
+LLM provider package initialization.
 """
 from .factory import LLMProviderFactory
 from .base import BaseLLMProvider

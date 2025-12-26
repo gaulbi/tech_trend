@@ -17,6 +17,7 @@ llm:
   retry: 3 
 image-generator:
   image-path: data/image                      #Base output folder
+  thumbnail-image-path: data/thumbnail
   url-mapping-path: data/image-url-mapping
   log: log/image-generator
   timeout: 60
@@ -58,7 +59,8 @@ article-publisher:
   published-article: data/published-tech-trend-article
   api-header: X-Hashnode-Api-Key
   server: https://gql.hashnode.com
-  publication-id: 69338c8f89000fd11cf3ce38
+  #publication-id: 69338c8f89000fd11cf3ce38
+  publication-id: 69337c78b74a62fa02a93b49
   timezone: America/New_York
 imgbb:
   upload-enabled: true                   

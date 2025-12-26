@@ -12,10 +12,5 @@
     "Dev.to": "https://dev.to/feed",
     "Reddit /r/programming": "https://www.reddit.com/r/programming/.rss",
     "The New Stack": "https://thenewstack.io/feed/"
-  },
-  "Aerospace": {
-    "NASA - News": "https://www.nasa.gov/news-release/feed/",
-    "NASA - Technology": "https://www.nasa.gov/technology/feed/",
-    "NASA - JPL": "https://www.jpl.nasa.gov/feeds/news/"
   }
 }

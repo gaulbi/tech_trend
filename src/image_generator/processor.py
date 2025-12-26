@@ -1,277 +1,383 @@
 """
-Image generation processor module.
+Main image processing orchestration module.
 """
+import logging
+import time
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
-from .config import Config
-from .logger import Logger, log_execution
-from .parser import MarkdownParser
+from .config import ConfigManager
+from .parser import ArticleParser
 from .llm import LLMProviderFactory
-from .exceptions import ValidationError, NetworkError, LLMProviderError
+from .imgbb import ImgBBUploader
+from .thumbnail import ThumbnailGenerator
+from .url_mapper import URLMapper
+from .exceptions import (
+    ValidationError,
+    NetworkError,
+    ImgBBUploadError,
+    LLMProviderError,
+    ThumbnailGenerationError
+)
 
 
 class ImageProcessor:
-    """Processes markdown files and generates images."""
+    """Orchestrates the image generation pipeline."""
     
-    def __init__(self, config: Config, logger: Logger):
+    def __init__(
+        self,
+        config: ConfigManager,
+        logger: logging.Logger,
+        feed_date: str
+    ):
         """
-        Initialize processor.
+        Initialize image processor.
         
         Args:
-            config: Configuration object
+            config: Configuration manager
             logger: Logger instance
+            feed_date: Feed date string
         """
         self.config = config
         self.logger = logger
-        self.parser = MarkdownParser()
+        self.feed_date = feed_date
+        self.parser = ArticleParser()
+        self.url_mapper = URLMapper(config.url_mapping_path)
+        self.upload_enabled = config.get('imgbb.upload-enabled', True)
+        self.thumbnail_generator = ThumbnailGenerator(logger)
         
-        # Create LLM provider
-        self.llm_provider = LLMProviderFactory.create(
-            provider=config.image_generator.provider,
-            model=config.image_generator.llm_model,
-            timeout=config.image_generator.timeout,
-            retry=config.image_generator.retry
-        )
+        self.llm_provider = self._create_llm_provider()
+        self.imgbb_uploader = self._create_imgbb_uploader()
     
-    def _build_prompt(self, summary: str) -> str:
-        """
-        Build image generation prompt from summary.
-        
-        Args:
-            summary: Article summary
-            
-        Returns:
-            Complete prompt with style instructions
-        """
-        style = self.config.image_generator.style_instruction
-        return f"{style}\n\n{summary}"
-    
-    def _get_output_path(
+    def process(
         self,
-        feed_date: str,
-        category: str,
-        md_file: Path
-    ) -> Path:
-        """
-        Get output path for generated image.
-        
-        Args:
-            feed_date: Feed date (YYYY-MM-DD)
-            category: Article category
-            md_file: Source markdown file
-            
-        Returns:
-            Output path for image
-        """
-        output_format = self.config.image_generator.output_format
-        filename = md_file.stem + f".{output_format}"
-        
-        return (
-            self.config.image_generator.image_path /
-            feed_date /
-            category /
-            filename
-        )
-    
-    def _should_skip(self, output_path: Path, md_file: Path) -> bool:
-        """
-        Check if image generation should be skipped.
-        
-        Args:
-            output_path: Expected output path
-            md_file: Source markdown file
-            
-        Returns:
-            True if should skip
-        """
-        if output_path.exists():
-            self.logger.info(
-                f"Skipping {md_file.name} (already processed)"
-            )
-            print(
-                f"Skipping {md_file.name} "
-                f"(already processed for {output_path.parent.name}/"
-                f"{output_path.parent.parent.name})"
-            )
-            return True
-        return False
-    
-    def process_file(
-        self,
-        md_file: Path,
-        feed_date: str,
-        category: str
-    ) -> Optional[Path]:
-        """
-        Process single markdown file and generate image.
-        
-        Args:
-            md_file: Path to markdown file
-            feed_date: Feed date
-            category: Article category
-            
-        Returns:
-            Path to generated image or None if skipped/failed
-        """
-        output_path = self._get_output_path(feed_date, category, md_file)
-        
-        # Check idempotency
-        if self._should_skip(output_path, md_file):
-            return None
-        
-        try:
-            # Parse markdown and extract summary
-            self.logger.debug(f"Parsing {md_file.name}")
-            summary = self.parser.parse_file(md_file)
-            
-            # Build prompt
-            prompt = self._build_prompt(summary)
-            
-            # Generate image
-            self.logger.info(f"Generating image for {md_file.name}")
-            self.llm_provider.generate_image(
-                prompt=prompt,
-                output_path=output_path,
-                size=self.config.image_generator.default_size,
-                aspect_ratio=self.config.image_generator.aspect_ratio,
-                output_format=self.config.image_generator.output_format
-            )
-            
-            self.logger.info(
-                f"Successfully generated image: {output_path}"
-            )
-            return output_path
-            
-        except ValidationError as e:
-            self.logger.error(
-                f"Validation error for {md_file.name}: {e}",
-                exc_info=False
-            )
-            return None
-            
-        except (NetworkError, LLMProviderError) as e:
-            self.logger.error(
-                f"Failed to generate image for {md_file.name}: {e}",
-                exc_info=True
-            )
-            return None
-            
-        except Exception as e:
-            self.logger.error(
-                f"Unexpected error processing {md_file.name}: {e}",
-                exc_info=True
-            )
-            return None
-    
-    def get_markdown_files(
-        self,
-        feed_date: str,
         category: Optional[str] = None,
         file_name: Optional[str] = None
-    ) -> List[tuple]:
+    ) -> None:
         """
-        Get list of markdown files to process.
+        Process articles and generate images.
         
         Args:
-            feed_date: Feed date
-            category: Specific category (optional)
-            file_name: Specific file name (optional)
-            
-        Returns:
-            List of (md_file, category) tuples
+            category: Specific category to process (None for all)
+            file_name: Specific file to process (requires category)
         """
-        base_path = self.config.article_generator.tech_trend_article / feed_date
+        base_path = self.config.article_base_path / self.feed_date
         
         if not base_path.exists():
             self.logger.warning(
-                f"No data found for feed date: {feed_date}"
+                f"No input directory found for feed date: {self.feed_date}"
             )
-            return []
-        
-        files = []
+            return
         
         if category and file_name:
-            # Process specific file
-            file_path = base_path / category / file_name
-            if file_path.exists() and file_path.suffix.lower() == '.md':
-                files.append((file_path, category))
-            else:
-                self.logger.warning(
-                    f"File not found: {file_path}"
-                )
-                
+            self._process_single_file(base_path, category, file_name)
         elif category:
-            # Process all files in category
-            category_path = base_path / category
-            if category_path.exists():
-                md_files = list(category_path.glob("*.md"))
-                files.extend([(f, category) for f in md_files])
-            else:
-                self.logger.warning(
-                    f"Category not found: {category}"
-                )
-                
+            self._process_category(base_path, category)
         else:
-            # Process all categories
-            for cat_path in base_path.iterdir():
-                if cat_path.is_dir():
-                    md_files = list(cat_path.glob("*.md"))
-                    cat_name = cat_path.name
-                    files.extend([(f, cat_name) for f in md_files])
-        
-        return files
+            self._process_all_categories(base_path)
     
-    def process_batch(
-        self,
-        feed_date: str,
-        category: Optional[str] = None,
-        file_name: Optional[str] = None
-    ) -> dict:
-        """
-        Process batch of markdown files.
+    def _process_all_categories(self, base_path: Path) -> None:
+        """Process all categories in base path."""
+        categories = [d for d in base_path.iterdir() if d.is_dir()]
         
-        Args:
-            feed_date: Feed date
-            category: Specific category (optional)
-            file_name: Specific file name (optional)
-            
-        Returns:
-            Statistics dictionary
-        """
-        files = self.get_markdown_files(feed_date, category, file_name)
-        
-        if not files:
+        if not categories:
             self.logger.warning(
-                f"No markdown files found for {feed_date}"
+                f"No categories found in {base_path}"
             )
-            return {
-                "total": 0,
-                "processed": 0,
-                "skipped": 0,
-                "failed": 0
-            }
+            return
+        
+        for category_dir in categories:
+            self._process_category(base_path, category_dir.name)
+    
+    def _process_category(self, base_path: Path, category: str) -> None:
+        """Process all markdown files in a category."""
+        category_path = base_path / category
+        
+        if not category_path.exists():
+            self.logger.warning(f"Category not found: {category}")
+            return
+        
+        md_files = list(category_path.glob("*.md"))
+        
+        if not md_files:
+            self.logger.warning(
+                f"No markdown files found in category: {category}"
+            )
+            return
         
         self.logger.info(
-            f"Found {len(files)} markdown file(s) to process"
+            f"Processing category: {category} ({len(md_files)} files)"
         )
         
-        stats = {
-            "total": len(files),
-            "processed": 0,
-            "skipped": 0,
-            "failed": 0
-        }
+        for md_file in md_files:
+            self._process_article(category, md_file)
         
-        for md_file, cat in files:
-            result = self.process_file(md_file, feed_date, cat)
+        self.logger.info(f"Completed category: {category}")
+    
+    def _process_single_file(
+        self,
+        base_path: Path,
+        category: str,
+        file_name: str
+    ) -> None:
+        """Process a single markdown file."""
+        md_file = base_path / category / file_name
+        
+        if not md_file.exists():
+            self.logger.error(
+                f"File not found: {category}/{file_name}"
+            )
+            return
+        
+        self._process_article(category, md_file)
+    
+    def _process_article(self, category: str, md_file: Path) -> None:
+        """
+        Process single article: parse, generate image, upload.
+        
+        Args:
+            category: Article category
+            md_file: Path to markdown file
+        """
+        article_name = md_file.name
+        
+        try:
+            if self._should_skip(category, article_name):
+                return
             
-            if result is None:
-                if self._get_output_path(feed_date, cat, md_file).exists():
-                    stats["skipped"] += 1
+            self.logger.info(
+                f"Processing: {category}/{article_name}"
+            )
+            
+            summary = self._parse_article(md_file)
+
+            self.logger.info(f"Summary: {summary}")
+
+            local_path = self._get_output_path(category, article_name)
+            thumbnail_path = self._get_thumbnail_path(category, article_name)
+            
+            # Load existing mapping to preserve data
+            existing_mapping = self.url_mapper.load(
+                self.feed_date,
+                category,
+                article_name
+            )
+            
+            # Track what we have
+            imgbb_url = existing_mapping.get('imgbb_url') if existing_mapping else None
+            thumbnail_imgbb_url = existing_mapping.get('thumbnail_imgbb_url') if existing_mapping else None
+            status = existing_mapping.get('status', 'started') if existing_mapping else 'started'
+            
+            # Generate original image if needed
+            if not local_path.exists():
+                self._generate_image(summary, local_path)
+            
+            # Generate thumbnail if enabled and needed
+            if not thumbnail_path.exists():
+                if local_path.exists():
+                    try:
+                        self._generate_thumbnail(local_path, thumbnail_path)
+                    except ThumbnailGenerationError as e:
+                        self.logger.error(f"Thumbnail generation failed for {article_name}: {e}")
                 else:
-                    stats["failed"] += 1
+                    self.logger.warning(f"Cannot generate thumbnail, original image missing: {article_name}")
+            
+            # Upload original image if needed
+            if (self.upload_enabled and
+                self.imgbb_uploader and
+                not imgbb_url):
+                if local_path.exists():
+                    imgbb_url, org_status = self._upload_image(
+                        local_path, 
+                        "original"
+                    )
+            
+            # Upload thumbnail if needed
+            if (self.upload_enabled and
+                self.imgbb_uploader and 
+                thumbnail_path.exists() and not thumbnail_imgbb_url):
+                thumbnail_imgbb_url, thumb_status = self._upload_image(
+                    thumbnail_path,
+                    "thumbnail"
+                )
+
+            if org_status == 'success' and thumb_status == 'success':
+                status = 'success'
             else:
-                stats["processed"] += 1
+                status = 'completed with error'
+            
+            # Always save mapping with current state
+            self.url_mapper.save(
+                self.feed_date,
+                category,
+                article_name,
+                str(local_path),
+                imgbb_url,
+                status,
+                str(thumbnail_path),
+                thumbnail_imgbb_url
+            )
+            
+            self.logger.info(
+                f"Completed: {category}/{article_name}",
+                extra={
+                    'extra_data': {
+                        'status': status,
+                        'imgbb_url': imgbb_url,
+                        'thumbnail_imgbb_url': thumbnail_imgbb_url,
+                    }
+                }
+            )
+            
+        except ValidationError as e:
+            self.logger.error(
+                f"Validation error for {article_name}: {e}"
+            )
+        except Exception as e:
+            self.logger.error(
+                f"Unexpected error processing {article_name}: {e}",
+                exc_info=True
+            )
+    
+    def _should_skip(self, category: str, article_name: str) -> bool:
+        """Check if article should be skipped (already processed)."""
+        output_path = self._get_output_path(category, article_name)
+        thumbnail_path = self._get_thumbnail_path(category, article_name)
+        mapping = self.url_mapper.load(
+            self.feed_date,
+            category,
+            article_name
+        )
         
-        return stats
+        # Skip only if both images exist and uploads succeeded
+        has_original = output_path.exists()
+        has_thumbnail = thumbnail_path.exists() if self.upload_enabled else True
+        has_successful_upload = mapping and mapping.get('status') == 'success'
+        
+        if has_original and has_thumbnail and has_successful_upload:
+            self.logger.info(
+                f"Skipping {article_name} (already processed)"
+            )
+            return True
+        
+        return False
+    
+    def _parse_article(self, md_file: Path) -> str:
+        """Parse article and extract summary."""
+        return self.parser.parse(md_file)
+    
+    def _get_output_path(self, category: str, article_name: str) -> Path:
+        """Get output path for generated image."""
+        output_format = self.config.get('image-generator.output-format', 'jpg')
+        file_stem = Path(article_name).stem
+        
+        return (
+            self.config.image_output_path /
+            self.feed_date /
+            category /
+            f"{file_stem}.{output_format}"
+        )
+    
+    def _get_thumbnail_path(self, category: str, article_name: str) -> Path:
+        """Get output path for thumbnail image."""
+        output_format = self.config.get('image-generator.output-format', 'jpg')
+        file_stem = Path(article_name).stem
+        
+        return (
+            self.config.thumbnail_output_path /
+            self.feed_date /
+            category /
+            f"thumbnail-{file_stem}.{output_format}"
+        )
+    
+    def _generate_image(self, summary: str, output_path: Path) -> None:
+        """Generate image with retry logic."""
+        max_retries = self.config.get('image-generator.retry', 3)
+        
+        for attempt in range(max_retries):
+            try:
+                self.llm_provider.generate_image(summary, output_path)
+                return
+            except LLMProviderError as e:
+                if attempt == max_retries - 1:
+                    raise NetworkError(
+                        f"Image generation failed after {max_retries} attempts: {e}"
+                    )
+                
+                wait_time = 2 ** attempt
+                self.logger.warning(
+                    f"Generation attempt {attempt + 1} failed, "
+                    f"retrying in {wait_time}s: {e}"
+                )
+                time.sleep(wait_time)
+    
+    def _upload_image(self, local_path: Path, image_type: str = "image") -> tuple:
+        """
+        Upload image to ImgBB.
+        
+        Args:
+            local_path: Path to image file
+            image_type: Type of image ("original" or "thumbnail") for logging
+        
+        Returns:
+            Tuple of (imgbb_url, status)
+        """
+        if not self.imgbb_uploader:
+            return None, 'upload_disabled'
+        
+        try:
+            url = self.imgbb_uploader.upload(local_path)
+            self.logger.info(f"ImgBB upload successful ({image_type}): {local_path.name}")
+            return url, 'success'
+        except ImgBBUploadError as e:
+            self.logger.error(f"ImgBB upload failed ({image_type}) for {local_path.name}: {e}")
+            return None, 'upload_failed'
+    
+    def _create_llm_provider(self):
+        """Create LLM provider instance."""
+        provider_name = self.config.get('image-generator.provider')
+        model = self.config.get('image-generator.llm-model')
+        
+        return LLMProviderFactory.create(
+            provider_name,
+            model,
+            self.config
+        )
+    
+    def _create_imgbb_uploader(self) -> Optional[ImgBBUploader]:
+        """Create ImgBB uploader instance."""
+        if not self.upload_enabled:
+            self.logger.info("ImgBB upload is disabled in config")
+            return None
+        
+        api_key = self.config.get_env('IMGBB_API_KEY')
+        if not api_key:
+            self.logger.warning(
+                "IMGBB_API_KEY not set, uploads will be disabled"
+            )
+            self.upload_enabled = False
+            return None
+        
+        return ImgBBUploader(
+            api_key=api_key,
+            base_url=self.config.get('imgbb.url'),
+            timeout=self.config.get('imgbb.timeout', 30),
+            max_retries=self.config.get('imgbb.retry', 3),
+            logger=self.logger
+        )
+
+    def _generate_thumbnail(
+        self,
+        source_path: Path,
+        output_path: Path
+    ) -> None:
+        """Generate thumbnail from original image."""
+        if not self.thumbnail_generator:
+            raise ThumbnailGenerationError("Thumbnail generator not available")
+        
+        if not source_path.exists():
+            raise ThumbnailGenerationError(
+                f"Source image not found: {source_path}"
+            )
+        
+        self.thumbnail_generator.generate(source_path, output_path)

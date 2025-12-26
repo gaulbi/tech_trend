@@ -1,13 +1,14 @@
 """
 DeepSeek image generation provider.
 """
-import time
-import requests
+import base64
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Any
+
+import requests
 
 from .base import BaseLLMProvider
-from ..exceptions import LLMProviderError, NetworkError, ConfigurationError
+from ..exceptions import LLMProviderError
 
 
 class DeepSeekProvider(BaseLLMProvider):
@@ -15,22 +16,32 @@ class DeepSeekProvider(BaseLLMProvider):
     
     API_URL = "https://api.deepseek.com/v1/images/generations"
     
-    def validate_config(self) -> bool:
-        """Validate DeepSeek configuration."""
-        if not self.api_key:
-            raise ConfigurationError("DeepSeek API key is missing")
-        return True
+    def __init__(
+        self,
+        api_key: str,
+        model: str,
+        config: Dict[str, Any]
+    ):
+        """Initialize DeepSeek provider."""
+        super().__init__(api_key, model, config)
+        self.timeout = config.get('timeout', 60)
     
     def generate_image(
         self,
         prompt: str,
-        output_path: Path,
-        size: Optional[int] = None,
-        aspect_ratio: Optional[str] = None,
-        output_format: str = "jpg"
-    ) -> Path:
-        """Generate image using DeepSeek."""
-        self.validate_config()
+        output_path: Path
+    ) -> None:
+        """
+        Generate image using DeepSeek API.
+        
+        Args:
+            prompt: Text prompt for image generation
+            output_path: Path to save generated image
+            
+        Raises:
+            LLMProviderError: If image generation fails
+        """
+        full_prompt = self._build_full_prompt(prompt)
         
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -39,54 +50,36 @@ class DeepSeekProvider(BaseLLMProvider):
         
         payload = {
             "model": self.model,
-            "prompt": prompt,
+            "prompt": full_prompt,
             "n": 1,
-            "response_format": "url"
+            "size": self._get_size(),
+            "response_format": "b64_json"
         }
         
-        # Add size if supported and provided
-        if size:
-            payload["size"] = f"{size}x{size}"
-        
-        last_error = None
-        for attempt in range(self.retry):
-            try:
-                response = requests.post(
-                    self.API_URL,
-                    headers=headers,
-                    json=payload,
-                    timeout=self.timeout
-                )
-                response.raise_for_status()
-                
-                data = response.json()
-                image_url = data['data'][0]['url']
-                
-                # Download image
-                img_response = requests.get(
-                    image_url,
-                    timeout=self.timeout
-                )
-                img_response.raise_for_status()
-                
-                output_path.parent.mkdir(parents=True, exist_ok=True)
-                output_path.write_bytes(img_response.content)
-                
-                return output_path
-                
-            except requests.Timeout as e:
-                last_error = NetworkError(f"Request timeout: {e}")
-                if attempt < self.retry - 1:
-                    time.sleep(2 ** attempt)
-                    
-            except requests.RequestException as e:
-                last_error = NetworkError(f"Request failed: {e}")
-                if attempt < self.retry - 1:
-                    time.sleep(2 ** attempt)
-                    
-            except Exception as e:
-                last_error = LLMProviderError(f"Unexpected error: {e}")
-                if attempt < self.retry - 1:
-                    time.sleep(2 ** attempt)
-        
-        raise last_error
+        try:
+            response = requests.post(
+                self.API_URL,
+                headers=headers,
+                json=payload,
+                timeout=self.timeout
+            )
+            response.raise_for_status()
+            
+            data = response.json()
+            image_b64 = data['data'][0]['b64_json']
+            image_data = base64.b64decode(image_b64)
+            
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(image_data)
+            
+        except requests.exceptions.RequestException as e:
+            raise LLMProviderError(f"DeepSeek API request failed: {e}")
+        except (KeyError, IndexError) as e:
+            raise LLMProviderError(f"Invalid DeepSeek API response: {e}")
+        except Exception as e:
+            raise LLMProviderError(f"DeepSeek image generation failed: {e}")
+    
+    def _get_size(self) -> str:
+        """Get image size based on configuration."""
+        default_size = self.config.get('default-size', 1024)
+        return f"{default_size}x{default_size}"

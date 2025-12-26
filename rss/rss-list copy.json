@@ -19,5 +19,10 @@
     "The Next Platform": "https://www.nextplatform.com/feed/",
     "DataCenterDynamics": "https://www.datacenterdynamics.com/rss-news/",
     "ServeTheHome": "https://www.servethehome.com/feed/"
+  },
+  "Aerospace": {
+    "NASA - News": "https://www.nasa.gov/news-release/feed/",
+    "NASA - Technology": "https://www.nasa.gov/technology/feed/",
+    "NASA - JPL": "https://www.jpl.nasa.gov/feeds/news/"
   }
 }

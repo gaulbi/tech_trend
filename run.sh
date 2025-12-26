@@ -1,3 +1,4 @@
+source .venv/bin/activate
 uv run rss-fetch.py
 uv run tech-trend-analysis.py
 uv run deduplicator.py
@@ -5,5 +6,5 @@ uv run wiki-search.py
 uv run url-scraper.py
 uv run embedder.py
 uv run article-generator.py
-uv run image-generator_with-img-upload.py
+uv run image-generator.py
 uv run article-publisher.py

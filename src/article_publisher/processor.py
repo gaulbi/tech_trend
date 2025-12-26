@@ -104,3 +104,17 @@ def validate_processed_content(content: str) -> bool:
         # This is a warning, not an error - continue anyway
     
     return True
+
+
+def remove_first_line(content: str) -> str:
+    """
+    Remove the first line from the content string.
+    
+    Args:
+        content: The input string from which the first line will be removed.
+    
+    Returns:
+        The content string without the first line.
+    """
+    return '\n'.join(content.splitlines()[1:])
+

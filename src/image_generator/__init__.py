@@ -1,5 +1,4 @@
 """
-Article Image Generator Package.
-Generates AI-powered images for technical articles.
+Image Generator Package
 """
-__version__ = "1.0.0"
+__version__ = '1.0.0'

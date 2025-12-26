@@ -67,8 +67,10 @@ def extract_title(content: str) -> str:
     Raises:
         ArticleNotFoundError: If title cannot be extracted
     """
-
-    match = re.search(r'^Title:\s*(.+?)\s*$', content, re.MULTILINE)
+    # Pattern to match title between ## Title and **Date/Time**:
+    pattern = r'## Title\s*\n\s*(.+?)\s*\n\s*\*\*Date/Time\*\*:'
+    
+    match = re.search(pattern, content, re.DOTALL)
     if not match:
         raise ArticleNotFoundError(
             "Could not extract title from article content"

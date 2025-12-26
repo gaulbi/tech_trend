@@ -1,5 +1,5 @@
 """
-Custom exceptions for the image generator module.
+Custom exception classes for the image generator.
 """
 
 
@@ -9,7 +9,7 @@ class ImageGeneratorError(Exception):
 
 
 class ConfigurationError(ImageGeneratorError):
-    """Raised when configuration is missing or invalid."""
+    """Raised when configuration is invalid or missing."""
     pass
 
 
@@ -23,6 +23,21 @@ class NetworkError(ImageGeneratorError):
     pass
 
 
+class HashNodeUploadError(ImageGeneratorError):
+    """Raised when Hashnode upload fails."""
+    pass
+
+
+class ImgBBUploadError(ImageGeneratorError):
+    """Raised when ImgBB upload fails."""
+    pass
+
+
 class LLMProviderError(ImageGeneratorError):
     """Raised when LLM provider operations fail."""
+    pass
+
+
+class ThumbnailGenerationError(ImageGeneratorError):
+    """Raised when thumbnail generation fails."""
     pass

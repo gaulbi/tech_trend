@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
-Entry point for the Article Image Generator.
+Article Image Generator - Entry Point
 """
 import sys
-from src.image_generator.cli import main
+from src.image_generator.main import main
 
 if __name__ == "__main__":
     sys.exit(main())

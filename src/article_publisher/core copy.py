@@ -11,7 +11,7 @@ from .loader import (
     load_image_mapping,
     find_articles
 )
-from .processor import process_article_content, validate_processed_content, remove_first_line
+from .processor import process_article_content, validate_processed_content
 from .storage import (
     check_already_published,
     save_publish_result
@@ -207,12 +207,10 @@ class ArticlePublisher:
             )
             
             # Validate content
-            # if not validate_processed_content(processed_content):
-            #     raise PublishError(
-            #         f"Content validation failed for {file_name}"
-            #     )
-
-            processed_content = remove_first_line(processed_content)
+            if not validate_processed_content(processed_content):
+                raise PublishError(
+                    f"Content validation failed for {file_name}"
+                )
             
             # Publish to Hashnode
             logger.info(
@@ -220,12 +218,9 @@ class ArticlePublisher:
                 extra={"category": category, "file_name": file_name}
             )
             
-            img_url = image_mapping.imgbb_url
-            logger.info(f"img_url: {img_url}")
             response = self.client.publish_article(
                 title=article.title,
                 content=processed_content,
-                img_url=img_url,
                 publication_id=self.publication_id,
                 tags=[]
             )

@@ -1,9 +1,9 @@
 """
-Abstract base class for LLM providers.
+Abstract base class for LLM image generation providers.
 """
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Any
 
 
 class BaseLLMProvider(ABC):
@@ -13,8 +13,7 @@ class BaseLLMProvider(ABC):
         self,
         api_key: str,
         model: str,
-        timeout: int = 60,
-        retry: int = 3
+        config: Dict[str, Any]
     ):
         """
         Initialize LLM provider.
@@ -22,50 +21,39 @@ class BaseLLMProvider(ABC):
         Args:
             api_key: API key for the provider
             model: Model name to use
-            timeout: Request timeout in seconds
-            retry: Number of retry attempts
+            config: Configuration dictionary
         """
         self.api_key = api_key
         self.model = model
-        self.timeout = timeout
-        self.retry = retry
+        self.config = config
     
     @abstractmethod
     def generate_image(
         self,
         prompt: str,
-        output_path: Path,
-        size: Optional[int] = None,
-        aspect_ratio: Optional[str] = None,
-        output_format: str = "jpg"
-    ) -> Path:
+        output_path: Path
+    ) -> None:
         """
-        Generate image from prompt.
+        Generate image from prompt and save to output path.
         
         Args:
             prompt: Text prompt for image generation
             output_path: Path to save generated image
-            size: Image size (if supported)
-            aspect_ratio: Aspect ratio (if supported)
-            output_format: Output format
-            
-        Returns:
-            Path to saved image
             
         Raises:
-            LLMProviderError: If generation fails
+            LLMProviderError: If image generation fails
         """
         pass
     
-    @abstractmethod
-    def validate_config(self) -> bool:
+    def _build_full_prompt(self, summary: str) -> str:
         """
-        Validate provider configuration.
+        Build full prompt with style instructions.
         
-        Returns:
-            True if configuration is valid
+        Args:
+            summary: Article summary text
             
-        Raises:
-            ConfigurationError: If configuration is invalid
+        Returns:
+            Complete prompt for image generation
         """
-        pass
+        style_instruction = self.config.get('style-instruction', '')
+        return f"{style_instruction}\n\n{summary}"

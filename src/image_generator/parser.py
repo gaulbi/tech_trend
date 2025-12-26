@@ -1,5 +1,5 @@
 """
-Markdown file parser for extracting article summaries.
+Markdown article parser module.
 """
 import re
 from pathlib import Path
@@ -8,47 +8,21 @@ from typing import Optional
 from .exceptions import ValidationError
 
 
-class MarkdownParser:
-    """Parser for extracting article summaries from markdown files."""
+class ArticleParser:
+    """Parser for extracting summary from markdown articles."""
     
     SUMMARY_PATTERN = re.compile(
         r'##\s+Summary\s*\n(.*?)\n##\s+Full Article',
         re.DOTALL | re.IGNORECASE
     )
     
-    @classmethod
-    def extract_summary(cls, md_content: str) -> str:
-        """
-        Extract summary section from markdown content.
-        
-        Args:
-            md_content: Markdown file content
-            
-        Returns:
-            Extracted summary text
-            
-        Raises:
-            ValidationError: If summary section not found
-        """
-        match = cls.SUMMARY_PATTERN.search(md_content)
-        
-        if not match:
-            raise ValidationError(
-                "Could not find Summary section in markdown file. "
-                "Expected format: '## Summary' followed by '## Full Article'"
-            )
-        
-        summary = match.group(1).strip()
-        
-        if not summary or not summary.strip():
-            raise ValidationError("Summary section is empty or whitespace")
-        
-        return summary
+    def __init__(self):
+        """Initialize article parser."""
+        pass
     
-    @classmethod
-    def parse_file(cls, file_path: Path) -> str:
+    def parse(self, file_path: Path) -> str:
         """
-        Parse markdown file and extract summary.
+        Parse markdown file and extract summary content.
         
         Args:
             file_path: Path to markdown file
@@ -57,19 +31,36 @@ class MarkdownParser:
             Extracted summary text
             
         Raises:
-            ValidationError: If file cannot be parsed
+            ValidationError: If file structure is invalid
         """
         if not file_path.exists():
             raise ValidationError(f"File not found: {file_path}")
-        
-        if file_path.suffix.lower() != '.md':
-            raise ValidationError(
-                f"Invalid file type: {file_path.suffix}. Expected .md"
-            )
         
         try:
             content = file_path.read_text(encoding='utf-8')
         except Exception as e:
             raise ValidationError(f"Failed to read file {file_path}: {e}")
         
-        return cls.extract_summary(content)
+        summary = self._extract_summary(content)
+        
+        if not summary:
+            raise ValidationError(
+                f"No summary section found in {file_path.name}"
+            )
+        
+        return summary.strip()
+    
+    def _extract_summary(self, content: str) -> Optional[str]:
+        """
+        Extract summary section from markdown content.
+        
+        Args:
+            content: Markdown file content
+            
+        Returns:
+            Summary text or None if not found
+        """
+        match = self.SUMMARY_PATTERN.search(content)
+        if match:
+            return match.group(1).strip()
+        return None
